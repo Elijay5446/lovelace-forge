@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
       name: title,
       language,
       content: code,
-      description: description.trim(),
+      description: explanation || description.trim(),
       artifact_type: "script",
       project_id: projectId,
     });

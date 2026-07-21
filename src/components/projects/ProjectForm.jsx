@@ -4,30 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Hammer, Loader2, X } from "lucide-react";
 
-const CATEGORIES = [
-  { value: "web", label: "Web" },
-  { value: "mobile", label: "Mobile" },
-  { value: "ai", label: "AI" },
-  { value: "game", label: "Game" },
-  { value: "tool", label: "Tool" },
-  { value: "hardware", label: "Hardware" },
-  { value: "other", label: "Other" },
-];
+const ENGINES = ["Unity 6", "Unity 2021.6"];
+const FRAMEWORKS = ["UFE2", "Custom"];
 
 const EMPTY = {
-  title: "",
+  name: "",
   description: "",
-  author: "",
-  tech_stack: "",
-  category: "web",
-  image_url: "",
-  github_url: "",
-  demo_url: "",
-  featured: false,
+  platform: "",
+  engine: "Unity 6",
+  framework: "UFE2",
 };
+
+const fieldCls =
+  "bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50";
 
 export default function ProjectForm({ onDone }) {
   const [form, setForm] = useState(EMPTY);
@@ -39,28 +30,19 @@ export default function ProjectForm({ onDone }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (!form.title.trim() || !form.description.trim() || !form.author.trim()) {
-      setError("Title, description, and author are required.");
+    if (!form.name.trim()) {
+      setError("A project name is required.");
       return;
     }
-
     setSaving(true);
     try {
-      const payload = {
-        title: form.title.trim(),
+      await base44.entities.Project.create({
+        name: form.name.trim(),
         description: form.description.trim(),
-        author: form.author.trim(),
-        category: form.category,
-        tech_stack: form.tech_stack
-          ? form.tech_stack.split(",").map((t) => t.trim()).filter(Boolean)
-          : [],
-        image_url: form.image_url.trim() || undefined,
-        github_url: form.github_url.trim() || undefined,
-        demo_url: form.demo_url.trim() || undefined,
-        featured: form.featured,
-      };
-      await base44.entities.Project.create(payload);
+        platform: form.platform.trim() || undefined,
+        engine: form.engine,
+        framework: form.framework,
+      });
       setForm(EMPTY);
       onDone?.();
     } catch (err) {
@@ -73,131 +55,88 @@ export default function ProjectForm({ onDone }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex items-center gap-2 pb-2">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-700 flex items-center justify-center">
-          <Hammer className="w-4 h-4 text-white" />
+      <div className="flex items-center gap-2 pb-1">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700">
+          <Hammer className="h-4 w-4 text-white" />
         </div>
         <div>
-          <h2 className="font-heading font-bold text-lg leading-none">Forge a Project</h2>
-          <p className="text-xs text-stone-500 mt-1">Share your creation with the community</p>
+          <h2 className="font-display text-sm font-semibold uppercase tracking-wide text-stone-200">
+            Forge a Project
+          </h2>
+          <p className="text-xs text-stone-500">Start a new build in the forge</p>
         </div>
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="title">Title *</Label>
+        <Label htmlFor="pf-name">Name *</Label>
         <Input
-          id="title"
-          value={form.title}
-          onChange={(e) => update("title", e.target.value)}
-          placeholder="My awesome project"
-          className="bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50"
+          id="pf-name"
+          value={form.name}
+          onChange={(e) => update("name", e.target.value)}
+          placeholder="Riftbreaker: Ironclad"
+          className={fieldCls}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="author">Author *</Label>
-        <Input
-          id="author"
-          value={form.author}
-          onChange={(e) => update("author", e.target.value)}
-          placeholder="Your name"
-          className="bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="description">Description *</Label>
+        <Label htmlFor="pf-desc">Description</Label>
         <Textarea
-          id="description"
+          id="pf-desc"
           value={form.description}
           onChange={(e) => update("description", e.target.value)}
-          placeholder="What does it do? What problem does it solve?"
+          placeholder="A 2.5D UFE2 fighting game with parry mechanics..."
           rows={3}
-          className="bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50 resize-none"
+          className={`${fieldCls} resize-none`}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="tech_stack">Tech Stack</Label>
+        <Label htmlFor="pf-platform">Target Platform</Label>
         <Input
-          id="tech_stack"
-          value={form.tech_stack}
-          onChange={(e) => update("tech_stack", e.target.value)}
-          placeholder="React, Node, Postgres (comma-separated)"
-          className="bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50"
+          id="pf-platform"
+          value={form.platform}
+          onChange={(e) => update("platform", e.target.value)}
+          placeholder="PC/Steam"
+          className={fieldCls}
         />
       </div>
 
-      <div className="space-y-1.5">
-        <Label>Category</Label>
-        <div className="flex flex-wrap gap-2">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              type="button"
-              onClick={() => update("category", cat.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                form.category === cat.value
-                  ? "bg-amber-600 text-white"
-                  : "bg-white/5 text-stone-400 hover:bg-white/10"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="image_url">Image URL</Label>
-          <Input
-            id="image_url"
-            value={form.image_url}
-            onChange={(e) => update("image_url", e.target.value)}
-            placeholder="https://..."
-            className="bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50"
-          />
+          <Label htmlFor="pf-engine">Engine</Label>
+          <select
+            id="pf-engine"
+            value={form.engine}
+            onChange={(e) => update("engine", e.target.value)}
+            className={`${fieldCls} h-9 w-full rounded-md px-3 text-sm`}
+          >
+            {ENGINES.map((v) => (
+              <option key={v} value={v} className="bg-stone-900">
+                {v}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="github_url">GitHub</Label>
-            <Input
-              id="github_url"
-              value={form.github_url}
-              onChange={(e) => update("github_url", e.target.value)}
-              placeholder="https://github.com/..."
-              className="bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="demo_url">Demo</Label>
-            <Input
-              id="demo_url"
-              value={form.demo_url}
-              onChange={(e) => update("demo_url", e.target.value)}
-              placeholder="https://..."
-              className="bg-white/5 border-white/10 text-stone-100 placeholder:text-stone-600 focus:border-amber-500/50"
-            />
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pf-framework">Framework</Label>
+          <select
+            id="pf-framework"
+            value={form.framework}
+            onChange={(e) => update("framework", e.target.value)}
+            className={`${fieldCls} h-9 w-full rounded-md px-3 text-sm`}
+          >
+            {FRAMEWORKS.map((v) => (
+              <option key={v} value={v} className="bg-stone-900">
+                {v}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-
-      <div className="flex items-center justify-between rounded-lg bg-white/5 border border-white/5 px-4 py-3">
-        <div>
-          <Label htmlFor="featured" className="cursor-pointer">Featured</Label>
-          <p className="text-xs text-stone-500 mt-0.5">Highlight this on the showcase</p>
-        </div>
-        <Switch
-          id="featured"
-          checked={form.featured}
-          onCheckedChange={(v) => update("featured", v)}
-        />
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 flex items-center gap-1.5">
-          <X className="w-3.5 h-3.5" />
+        <p className="flex items-center gap-1.5 text-sm text-red-400">
+          <X className="h-3.5 w-3.5" />
           {error}
         </p>
       )}
@@ -206,17 +145,15 @@ export default function ProjectForm({ onDone }) {
         <Button
           type="submit"
           disabled={saving}
-          className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white border-0"
+          className="flex-1 border-0 bg-gradient-to-r from-amber-600 to-orange-600 text-white hover:from-amber-500 hover:to-orange-500"
         >
           {saving ? (
             <>
-              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-              Forging...
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Forging...
             </>
           ) : (
             <>
-              <Hammer className="w-4 h-4 mr-1.5" />
-              Forge it
+              <Hammer className="mr-1.5 h-4 w-4" /> Forge it
             </>
           )}
         </Button>
@@ -224,7 +161,7 @@ export default function ProjectForm({ onDone }) {
           type="button"
           variant="ghost"
           onClick={onDone}
-          className="text-stone-400 hover:text-stone-200 hover:bg-white/5"
+          className="text-stone-400 hover:bg-white/5 hover:text-stone-200"
         >
           Cancel
         </Button>

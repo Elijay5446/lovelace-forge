@@ -1,5 +1,6 @@
 import React from "react";
-import { Plus, Loader2, LogOut, FolderCog, Cable } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { Plus, Loader2, LogOut, FolderCog, Cable, MessageSquare } from "lucide-react";
 
 export default function ChatSidebar({
   conversations,
@@ -12,6 +13,7 @@ export default function ChatSidebar({
   mobileNav,
   className = "",
 }) {
+  const { pathname } = useLocation();
   return (
     <aside
       className={`flex w-72 shrink-0 flex-col border-r border-white/5 bg-[#0a0a0b] ${className}`}
@@ -58,7 +60,26 @@ export default function ChatSidebar({
         <span className="mb-1 block px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-600">
           Workspace
         </span>
-        <NavComing icon={FolderCog} label="Projects" />
+        <Link
+          to="/app"
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
+            pathname === "/app"
+              ? "bg-white/10 text-stone-100"
+              : "text-stone-400 hover:bg-white/5 hover:text-stone-200"
+          }`}
+        >
+          <MessageSquare className="h-4 w-4" /> Chat
+        </Link>
+        <Link
+          to="/app/projects"
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
+            pathname.startsWith("/app/projects")
+              ? "bg-white/10 text-stone-100"
+              : "text-stone-400 hover:bg-white/5 hover:text-stone-200"
+          }`}
+        >
+          <FolderCog className="h-4 w-4" /> Projects
+        </Link>
         <NavComing icon={Cable} label="Connect Unity" />
       </nav>
 

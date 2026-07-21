@@ -1,131 +1,81 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Github, ExternalLink, Flame, Trash2 } from "lucide-react";
-import { Image } from "@/components/ui/image";
-import { base44 } from "@/api/base44Client";
+import { Code2, ListChecks, Flame, Trash2 } from "lucide-react";
 
-const CATEGORY_STYLES = {
-  web: "bg-sky-500/10 text-sky-400 border-sky-500/20",
-  mobile: "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  ai: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  game: "bg-pink-500/10 text-pink-400 border-pink-500/20",
-  tool: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  hardware: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  other: "bg-stone-500/10 text-stone-400 border-stone-500/20",
-};
-
-export default function ProjectCard({ project, index }) {
-  const handleDelete = async () => {
-    try {
-      await base44.entities.Project.delete(project.id);
-    } catch (e) {
-      console.error(e);
-    }
-  };
+export default function ProjectCard({
+  project,
+  index,
+  artifactCount,
+  taskCount,
+  onSelect,
+  onDelete,
+}) {
+  const created = project.created_date
+    ? new Date(project.created_date).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "—";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: Math.min(index * 0.05, 0.4) }}
-      className="group relative rounded-xl overflow-hidden bg-white/[0.02] border border-white/5 hover:border-white/15 transition-all duration-300 hover:shadow-2xl hover:shadow-orange-900/10 hover:-translate-y-1"
+      transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
+      onClick={() => onSelect?.(project)}
+      className="group relative cursor-pointer overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-orange-900/10"
     >
-      {/* Image / Gradient Header */}
-      <div className="relative h-40 overflow-hidden">
-        {project.image_url ? (
-          <Image
-            src={project.image_url}
-            alt={project.title}
-            className="w-full h-full"
-            fittingType="fill"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-stone-800 via-stone-900 to-[#0a0a0b] flex items-center justify-center">
-            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-700/20 border border-amber-500/10 flex items-center justify-center">
-              <Flame className="w-6 h-6 text-amber-500/50" />
-            </div>
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#131316] via-transparent to-transparent" />
-        <div className="absolute top-3 left-3">
-          <span
-            className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide border ${
-              CATEGORY_STYLES[project.category] || CATEGORY_STYLES.other
-            }`}
-          >
-            {project.category}
-          </span>
+      <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-amber-500/5 blur-2xl transition-opacity group-hover:opacity-100" />
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-700/20 ring-1 ring-amber-500/10">
+          <Flame className="h-4 w-4 text-amber-400/70" />
         </div>
-        {project.featured && (
-          <div className="absolute top-3 right-3">
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-              <Flame className="w-2.5 h-2.5" fill="currentColor" />
-              Featured
-            </span>
-          </div>
-        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.(project);
+          }}
+          className="text-stone-700 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+          title="Delete project"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </div>
 
-      {/* Body */}
-      <div className="p-5">
-        <h3 className="font-heading font-semibold text-base text-stone-100 mb-1 group-hover:text-amber-400 transition-colors">
-          {project.title}
-        </h3>
-        <p className="text-stone-500 text-xs mb-3">by {project.author}</p>
-        <p className="text-stone-400 text-sm leading-relaxed line-clamp-2 mb-4">
-          {project.description}
-        </p>
+      <h3 className="mt-3 font-display text-base font-semibold text-stone-100 transition group-hover:text-amber-400">
+        {project.name}
+      </h3>
+      <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-stone-500">
+        {project.description || "No description yet."}
+      </p>
 
-        {/* Tech Stack */}
-        {project.tech_stack?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {project.tech_stack.slice(0, 4).map((tech, i) => (
-              <span
-                key={i}
-                className="px-2 py-0.5 rounded text-[10px] font-medium bg-white/5 text-stone-400 border border-white/5"
-              >
-                {tech}
-              </span>
-            ))}
-            {project.tech_stack.length > 4 && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-medium text-stone-500">
-                +{project.tech_stack.length - 4}
-              </span>
-            )}
-          </div>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px]">
+        {project.platform && (
+          <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-medium text-stone-400">
+            {project.platform}
+          </span>
         )}
+        <span className="rounded border border-white/10 bg-white/5 px-2 py-0.5 font-medium text-stone-400">
+          {project.engine}
+        </span>
+        <span className="rounded border border-amber-500/20 bg-amber-500/5 px-2 py-0.5 font-medium text-amber-300/80">
+          {project.framework}
+        </span>
+      </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-3">
-            {project.github_url && (
-              <a
-                href={project.github_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-stone-500 hover:text-stone-200 transition-colors"
-              >
-                <Github className="w-4 h-4" />
-              </a>
-            )}
-            {project.demo_url && (
-              <a
-                href={project.demo_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-stone-500 hover:text-amber-400 transition-colors"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            )}
-          </div>
-          <button
-            onClick={handleDelete}
-            className="text-stone-700 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-            title="Delete project"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+      <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
+        <span className="text-xs text-stone-600">{created}</span>
+        <div className="flex items-center gap-3 text-xs text-stone-400">
+          <span className="flex items-center gap-1">
+            <Code2 className="h-3.5 w-3.5 text-stone-500" />
+            {artifactCount}
+          </span>
+          <span className="flex items-center gap-1">
+            <ListChecks className="h-3.5 w-3.5 text-stone-500" />
+            {taskCount}
+          </span>
         </div>
       </div>
     </motion.div>

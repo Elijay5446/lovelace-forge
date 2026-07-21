@@ -13,6 +13,8 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AppWorkspace from './pages/AppWorkspace';
+import ProjectsDashboard from './pages/ProjectsDashboard';
+import ProjectDetail from './pages/ProjectDetail';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthenticatedApp = () => {
@@ -49,6 +51,8 @@ const AuthenticatedApp = () => {
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
       <Route path="/app" element={<AppWorkspace />} />
+      <Route path="/app/projects" element={<ProjectsDashboard />} />
+      <Route path="/app/projects/:id" element={<ProjectDetail />} />
     </Route>
     <Route path="*" element={<PageNotFound />} />
     </Routes>

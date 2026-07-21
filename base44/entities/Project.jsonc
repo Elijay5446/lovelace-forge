@@ -25,6 +25,11 @@
       ],
       "default": "UFE2"
     },
+    "platform": {
+      "type": "string",
+      "title": "Target Platform",
+      "description": "e.g. PC/Steam, Mobile, Console"
+    },
     "description": {
       "type": "string",
       "title": "Description",
