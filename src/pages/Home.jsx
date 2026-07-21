@@ -5,7 +5,7 @@ import { Code2, Network, Cable, ArrowRight } from "lucide-react";
 import { Image } from "@/components/ui/image";
 
 const HERO_IMAGE =
-  "https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/2be2394a9_Removethebackground-makethebackgroundcomple.png";
+  "https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg";
 
 const PILLARS = [
   {
@@ -35,7 +35,7 @@ export default function Home() {
         </div>
 
         {/* Clockwork woman — transparent PNG, blended into black */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-20">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.55]">
           <Image
             src={HERO_IMAGE}
             alt="Steampunk clockwork woman — brass gears and mechanisms forming her head and hair"
