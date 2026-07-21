@@ -1,0 +1,47 @@
+{
+  "name": "BridgeSession",
+  "type": "object",
+  "properties": {
+    "tunnel_url": {
+      "type": "string",
+      "title": "Tunnel URL",
+      "description": "Live tunnel endpoint linking to the user's Unity editor"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "disconnected",
+        "connecting",
+        "connected",
+        "error"
+      ],
+      "default": "disconnected"
+    },
+    "unity_version": {
+      "type": "string",
+      "title": "Unity Version"
+    },
+    "last_seen_at": {
+      "type": "string",
+      "title": "Last Seen At",
+      "format": "date-time"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

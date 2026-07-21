@@ -1,0 +1,50 @@
+{
+  "name": "CodeArtifact",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "title": "Project",
+      "reference": "Project"
+    },
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "e.g. C#, HLSL, JSON"
+    },
+    "content": {
+      "type": "string",
+      "title": "Content",
+      "description": "Full source content (long text)"
+    },
+    "artifact_type": {
+      "type": "string",
+      "title": "Artifact Type",
+      "enum": [
+        "script",
+        "shader",
+        "prefab_config",
+        "animation_state",
+        "move_data",
+        "other"
+      ],
+      "default": "other"
+    }
+  },
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

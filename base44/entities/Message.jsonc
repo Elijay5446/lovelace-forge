@@ -1,0 +1,47 @@
+{
+  "name": "Message",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string",
+      "title": "Conversation",
+      "reference": "Conversation"
+    },
+    "role": {
+      "type": "string",
+      "title": "Role",
+      "enum": [
+        "user",
+        "assistant",
+        "system",
+        "consult_synthesis"
+      ]
+    },
+    "content": {
+      "type": "string",
+      "title": "Content",
+      "description": "Message body (long text)"
+    },
+    "token_count": {
+      "type": "number",
+      "title": "Token Count"
+    },
+    "model_source": {
+      "type": "string",
+      "title": "Model Source",
+      "description": "Which model/provider produced this message"
+    }
+  },
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

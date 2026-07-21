@@ -1,0 +1,33 @@
+{
+  "name": "UserProfile",
+  "type": "object",
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "title": "Display Name",
+      "description": "Name shown across the app"
+    },
+    "preferences": {
+      "type": "object",
+      "title": "Preferences",
+      "description": "User-specific app preferences (JSON)"
+    },
+    "onboarded": {
+      "type": "boolean",
+      "title": "Onboarded",
+      "default": false
+    }
+  },
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

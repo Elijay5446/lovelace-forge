@@ -1,0 +1,55 @@
+{
+  "name": "ModelResponse",
+  "type": "object",
+  "properties": {
+    "consult_session_id": {
+      "type": "string",
+      "title": "Consult Session",
+      "reference": "ConsultSession"
+    },
+    "model_id": {
+      "type": "string",
+      "title": "Model ID"
+    },
+    "provider": {
+      "type": "string",
+      "title": "Provider"
+    },
+    "content": {
+      "type": "string",
+      "title": "Content",
+      "description": "Model output (long text)"
+    },
+    "token_count": {
+      "type": "number",
+      "title": "Token Count"
+    },
+    "latency_ms": {
+      "type": "number",
+      "title": "Latency (ms)"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "pending",
+        "streaming",
+        "completed",
+        "failed"
+      ],
+      "default": "pending"
+    }
+  },
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

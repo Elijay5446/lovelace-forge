@@ -1,0 +1,68 @@
+{
+  "name": "ModelProvider",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Name",
+      "description": "Human-readable provider name"
+    },
+    "provider_type": {
+      "type": "string",
+      "title": "Provider Type",
+      "enum": [
+        "groq",
+        "anthropic",
+        "openai",
+        "custom"
+      ]
+    },
+    "model_id": {
+      "type": "string",
+      "title": "Model ID",
+      "description": "The model identifier used by the provider"
+    },
+    "api_base_url": {
+      "type": "string",
+      "title": "API Base URL"
+    },
+    "enabled": {
+      "type": "boolean",
+      "title": "Enabled",
+      "default": true
+    },
+    "priority": {
+      "type": "number",
+      "title": "Priority",
+      "default": 1
+    },
+    "max_tokens": {
+      "type": "number",
+      "title": "Max Tokens",
+      "default": 2048
+    },
+    "temperature_default": {
+      "type": "number",
+      "title": "Temperature Default",
+      "default": 0.7
+    }
+  },
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": true,
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

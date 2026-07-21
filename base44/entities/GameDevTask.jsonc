@@ -1,0 +1,64 @@
+{
+  "name": "GameDevTask",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "title": "Project",
+      "reference": "Project"
+    },
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "Task details (long text)"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category",
+      "enum": [
+        "rigging",
+        "hitbox",
+        "moveset",
+        "ai_config",
+        "stage_lighting",
+        "animation_retarget",
+        "other"
+      ],
+      "default": "other"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "todo",
+        "in_progress",
+        "done"
+      ],
+      "default": "todo"
+    },
+    "priority": {
+      "type": "number",
+      "title": "Priority",
+      "default": 3
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

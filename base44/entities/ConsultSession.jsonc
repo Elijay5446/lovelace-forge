@@ -1,0 +1,52 @@
+{
+  "name": "ConsultSession",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string",
+      "title": "Conversation",
+      "reference": "Conversation"
+    },
+    "prompt": {
+      "type": "string",
+      "title": "Prompt",
+      "description": "The prompt sent to all consulted models (long text)"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "pending",
+        "streaming",
+        "completed",
+        "failed"
+      ],
+      "default": "pending"
+    },
+    "model_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "Model IDs",
+      "description": "Models consulted in this session"
+    },
+    "completed_at": {
+      "type": "string",
+      "title": "Completed At",
+      "format": "date-time"
+    }
+  },
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

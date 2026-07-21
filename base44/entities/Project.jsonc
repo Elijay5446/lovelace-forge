@@ -2,68 +2,48 @@
   "name": "Project",
   "type": "object",
   "properties": {
-    "title": {
+    "name": {
       "type": "string",
-      "title": "Title",
+      "title": "Name",
       "description": "Project name"
+    },
+    "engine": {
+      "type": "string",
+      "title": "Engine",
+      "enum": [
+        "Unity 2021.6",
+        "Unity 6"
+      ],
+      "default": "Unity 6"
+    },
+    "framework": {
+      "type": "string",
+      "title": "Framework",
+      "enum": [
+        "UFE2",
+        "Custom"
+      ],
+      "default": "UFE2"
     },
     "description": {
       "type": "string",
       "title": "Description",
-      "description": "What does this project do?"
-    },
-    "tech_stack": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "title": "Tech Stack",
-      "description": "Technologies used"
-    },
-    "author": {
-      "type": "string",
-      "title": "Author",
-      "description": "Creator name"
-    },
-    "image_url": {
-      "type": "string",
-      "title": "Image URL",
-      "format": "uri"
-    },
-    "github_url": {
-      "type": "string",
-      "title": "GitHub URL",
-      "format": "uri"
-    },
-    "demo_url": {
-      "type": "string",
-      "title": "Demo URL",
-      "format": "uri"
-    },
-    "category": {
-      "type": "string",
-      "title": "Category",
-      "enum": [
-        "web",
-        "mobile",
-        "ai",
-        "game",
-        "tool",
-        "hardware",
-        "other"
-      ],
-      "default": "web"
-    },
-    "featured": {
-      "type": "boolean",
-      "title": "Featured",
-      "default": false
+      "description": "Project description (long text)"
     }
   },
   "required": [
-    "title",
-    "description",
-    "author",
-    "category"
-  ]
+    "name"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
 }
