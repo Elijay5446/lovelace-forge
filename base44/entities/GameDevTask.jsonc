@@ -44,6 +44,25 @@
       "type": "number",
       "title": "Priority",
       "default": 3
+    },
+    "task_type": {
+      "type": "string",
+      "title": "Task Type",
+      "enum": [
+        "Automatable",
+        "Manual"
+      ],
+      "default": "Manual"
+    },
+    "effort_estimate": {
+      "type": "string",
+      "title": "Effort Estimate",
+      "description": "Rough effort estimate (e.g. '2h', '1d')"
+    },
+    "order_index": {
+      "type": "number",
+      "title": "Order Index",
+      "default": 0
     }
   },
   "required": [

@@ -21,6 +21,11 @@
       "title": "Content",
       "description": "Full source content (long text)"
     },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "What the artifact was generated to do"
+    },
     "artifact_type": {
       "type": "string",
       "title": "Artifact Type",
