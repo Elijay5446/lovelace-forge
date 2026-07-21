@@ -35,7 +35,7 @@ export default function Home() {
         </div>
 
         {/* Clockwork woman — transparent PNG, blended into black */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-70">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-20">
           <Image
             src={HERO_IMAGE}
             alt="Steampunk clockwork woman — brass gears and mechanisms forming her head and hair"
