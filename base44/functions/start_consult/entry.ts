@@ -56,14 +56,21 @@ Deno.serve(async (req) => {
       model_ids: providers.map((p) => p.model_id),
     });
 
-    const consultOne = async (provider) => {
-      const started = Date.now();
+    // Create pending ModelResponse rows up front so the UI sees every council
+    // member immediately, then fill each in as it completes.
+    const pendingRows = [];
+    for (const p of providers) {
       const mr = await base44.entities.ModelResponse.create({
         consult_session_id: consult.id,
-        model_id: provider.model_id,
-        provider: provider.name,
+        model_id: p.model_id,
+        provider: p.name,
         status: "pending",
       });
+      pendingRows.push(mr);
+    }
+
+    const consultOne = async (provider, mrId) => {
+      const started = Date.now();
       try {
         const res = await fetch(provider.api_base_url, {
           method: "POST",
@@ -84,7 +91,7 @@ Deno.serve(async (req) => {
 
         if (!res.ok) {
           const errText = await res.text().catch(() => "");
-          await base44.entities.ModelResponse.update(mr.id, {
+          await base44.entities.ModelResponse.update(mrId, {
             status: "failed",
             content: `Provider error (${res.status}): ${errText}`,
             latency_ms: Date.now() - started,
@@ -97,14 +104,14 @@ Deno.serve(async (req) => {
         const usage = json?.usage || {};
         const tokenCount = usage.completion_tokens || usage.total_tokens || 0;
 
-        await base44.entities.ModelResponse.update(mr.id, {
+        await base44.entities.ModelResponse.update(mrId, {
           status: content ? "completed" : "failed",
           content: content || "The model returned an empty response.",
           token_count: tokenCount,
           latency_ms: Date.now() - started,
         });
       } catch (err) {
-        await base44.entities.ModelResponse.update(mr.id, {
+        await base44.entities.ModelResponse.update(mrId, {
           status: "failed",
           content: `Request failed: ${err?.message || "unknown error"}`,
           latency_ms: Date.now() - started,
@@ -112,23 +119,22 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Fan out concurrently; each provider saves its own result as it resolves
-    // so the UI can poll/subscribe and watch answers appear live.
-    await Promise.all(providers.map((p) => consultOne(p)));
-
-    const completedAt = new Date().toISOString();
-    await base44.entities.ConsultSession.update(consult.id, {
-      status: "completed",
-      completed_at: completedAt,
-    });
-
-    const responses = await base44.entities.ModelResponse.filter({
-      consult_session_id: consult.id,
-    });
+    // Fire-and-forget: run the providers in the background so this request can
+    // return the session id immediately. Each provider saves its own result as
+    // it resolves, letting the UI poll and watch answers appear live.
+    (async () => {
+      await Promise.allSettled(
+        providers.map((p, i) => consultOne(p, pendingRows[i].id))
+      );
+      await base44.entities.ConsultSession.update(consult.id, {
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      }).catch(() => {});
+    })();
 
     return Response.json({
       consult_session_id: consult.id,
-      responses,
+      responses: pendingRows,
     });
   } catch (error) {
     return Response.json(

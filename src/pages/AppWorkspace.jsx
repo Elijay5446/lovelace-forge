@@ -1,98 +1,294 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
-import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, Hammer } from "lucide-react";
+import ChatSidebar from "@/components/chat/ChatSidebar";
+import MessageList from "@/components/chat/MessageList";
+import ChatComposer from "@/components/chat/ChatComposer";
+import CouncilPanel from "@/components/chat/CouncilPanel";
+import EmptyState from "@/components/chat/EmptyState";
+import { Hammer, Menu } from "lucide-react";
+
+const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
+const friendlyKeyMsg =
+  "Lovelace needs her Groq API key configured to think — ask your admin to set GROQ_API_KEY.";
 
 export default function AppWorkspace() {
   const { user, logout } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [conversations, setConversations] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loadingConvos, setLoadingConvos] = useState(true);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [threadError, setThreadError] = useState("");
+  const [mobileNav, setMobileNav] = useState(false);
+  const [consult, setConsult] = useState(null);
+  const pollRef = useRef(null);
+
+  const loadConversations = useCallback(async () => {
+    setLoadingConvos(true);
+    try {
+      const list = await base44.entities.Conversation.list("-updated_date", 50);
+      setConversations(list || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingConvos(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
+    loadConversations();
+  }, [loadConversations]);
+
+  const loadMessages = useCallback(async (id) => {
+    if (!id) {
+      setMessages([]);
+      return;
+    }
+    setLoadingMsgs(true);
+    setThreadError("");
+    try {
+      const list = await base44.entities.Message.filter(
+        { conversation_id: id },
+        "-created_date",
+        100
+      );
+      setMessages([...(list || [])].reverse());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMsgs(false);
+    }
+  }, []);
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  const closeConsult = () => {
+    stopPolling();
+    setConsult(null);
+  };
+
+  useEffect(() => () => stopPolling(), []);
+
+  const selectConversation = (id) => {
+    setActiveId(id);
+    setMobileNav(false);
+    closeConsult();
+    loadMessages(id);
+  };
+
+  const ensureConversation = async (seedText) => {
+    if (activeId) return activeId;
+    const c = await base44.entities.Conversation.create({
+      title: (seedText || "New conversation").slice(0, 60),
+      last_message_preview: "",
+    });
+    setConversations((prev) => [c, ...prev]);
+    setActiveId(c.id);
+    return c.id;
+  };
+
+  const handleSend = async (text) => {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    setThreadError("");
+    try {
+      const convoId = await ensureConversation(text);
+      await base44.functions.invoke("chat_completion", {
+        conversation_id: convoId,
+        user_message: text,
+      });
+      await loadMessages(convoId);
+      await loadConversations();
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || "Something went wrong.";
+      setThreadError(isGroqKeyError(msg) ? friendlyKeyMsg : msg);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const startPolling = (sessionId) => {
+    stopPolling();
+    let elapsed = 0;
+    pollRef.current = setInterval(async () => {
+      elapsed += 1500;
       try {
-        const existing = await base44.entities.UserProfile.list();
-        let prof = existing && existing[0];
-        if (!prof) {
-          const name = user?.email ? user.email.split("@")[0] : "Developer";
-          prof = await base44.entities.UserProfile.create({
-            display_name: name,
-            onboarded: false,
-          });
+        const rows = await base44.entities.ModelResponse.filter({
+          consult_session_id: sessionId,
+        }, "-created_date", 50);
+        const ordered = [...(rows || [])].reverse();
+        setConsult((prev) => (prev ? { ...prev, responses: ordered } : prev));
+        const allDone =
+          ordered.length > 0 &&
+          ordered.every((r) => r.status === "completed" || r.status === "failed");
+        if (allDone || elapsed > 45000) {
+          stopPolling();
+          setConsult((prev) => (prev ? { ...prev, done: true } : prev));
         }
-        if (!cancelled) setProfile(prof);
       } catch (e) {
-        console.error("Profile init failed", e);
-        if (!cancelled) setError("Could not initialize your profile.");
-      } finally {
-        if (!cancelled) setLoading(false);
+        console.error(e);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.email]);
+    }, 1500);
+  };
+
+  const handleConsult = async (prompt) => {
+    if (!prompt.trim() || sending) return;
+    setThreadError("");
+    setSending(true);
+    try {
+      const convoId = await ensureConversation(prompt);
+      // Surface the question in the thread before the council deliberates.
+      await base44.entities.Message.create({
+        conversation_id: convoId,
+        role: "user",
+        content: prompt,
+      });
+      await loadMessages(convoId);
+
+      const res = await base44.functions.invoke("start_consult", {
+        conversation_id: convoId,
+        prompt,
+      });
+      const data = res.data || res;
+      setConsult({
+        consultSessionId: data.consult_session_id,
+        responses: data.responses || [],
+        synthesizing: false,
+        error: "",
+        done: false,
+      });
+      startPolling(data.consult_session_id);
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || "Could not consult the council.";
+      setConsult({
+        consultSessionId: null,
+        responses: [],
+        synthesizing: false,
+        error: isGroqKeyError(msg) ? friendlyKeyMsg : msg,
+        done: false,
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleSynthesize = async () => {
+    if (!consult?.consultSessionId) return;
+    setConsult((prev) => ({ ...prev, synthesizing: true, error: "" }));
+    try {
+      const res = await base44.functions.invoke("synthesize_consult", {
+        consult_session_id: consult.consultSessionId,
+      });
+      const data = res.data || res;
+      await loadMessages(activeId);
+      await loadConversations();
+      setConsult((prev) => ({
+        ...prev,
+        synthesizing: false,
+        done: true,
+        collapsed: true,
+        synthesis: data.synthesis,
+      }));
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || "Synthesis failed.";
+      setConsult((prev) => ({
+        ...prev,
+        synthesizing: false,
+        error: isGroqKeyError(msg) ? friendlyKeyMsg : msg,
+      }));
+    }
+  };
+
+  const activeConvo = conversations.find((c) => c.id === activeId);
+  const showEmpty = !activeId && messages.length === 0;
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-black text-stone-200 selection:bg-amber-500/30">
-      {/* Header */}
-      <header className="relative z-10 flex items-center justify-between border-b border-white/5 px-6 py-4 md:px-10">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700">
-            <Hammer className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-display text-sm font-bold tracking-wide text-stone-100">
-            LOVELACE FORGE
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          onClick={() => logout()}
-          className="text-stone-400 hover:text-stone-100 hover:bg-white/5"
-        >
-          <LogOut className="mr-1.5 h-4 w-4" />
-          Sign out
-        </Button>
-      </header>
+    <div className="relative flex h-screen w-full overflow-hidden bg-black text-stone-200">
+      {mobileNav && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 md:hidden"
+          onClick={() => setMobileNav(false)}
+        />
+      )}
 
-      {/* Shell */}
-      <main className="relative z-10 flex min-h-[calc(100vh-65px)] items-center justify-center px-6">
-        <div className="w-full max-w-xl text-center">
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 text-stone-500">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Preparing your forge…
+      <ChatSidebar
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={selectConversation}
+        onNew={() => {
+          newConversation();
+          setMobileNav(false);
+        }}
+        loading={loadingConvos}
+        user={user}
+        onLogout={logout}
+        mobileNav={mobileNav}
+        className={`fixed z-40 h-full transition-transform md:static md:translate-x-0 ${
+          mobileNav ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      />
+
+      <main className="relative flex flex-1 flex-col">
+        <header className="flex items-center justify-between border-b border-white/5 px-4 py-3 md:px-6">
+          <div className="flex items-center gap-2.5">
+            <button
+              className="text-stone-400 hover:text-stone-200 md:hidden"
+              onClick={() => setMobileNav((v) => !v)}
+              aria-label="Toggle conversations"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700">
+              <Hammer className="h-3.5 w-3.5 text-white" />
             </div>
-          ) : (
-            <>
-              <h1 className="forge-title font-display text-3xl font-bold tracking-[0.04em] text-[#FFF6E0] sm:text-4xl">
-                Welcome{profile?.display_name ? `, ${profile.display_name}` : ""}
-              </h1>
-              <p className="mt-3 text-sm text-stone-400">
-                Signed in as {user?.email}
-              </p>
+            <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+              {activeConvo?.title || "Lovelace Forge"}
+            </span>
+          </div>
+        </header>
 
-              {error ? (
-                <p className="mt-4 text-sm text-red-400">{error}</p>
-              ) : (
-                <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-stone-500">
-                  Your workspace is ready. The chat interface with Lovelace is
-                  coming next — for now, your account and profile are set up and
-                  your data is private to you.
-                </p>
-              )}
+        {showEmpty ? (
+          <EmptyState onSend={handleSend} />
+        ) : (
+          <MessageList
+            messages={messages}
+            loading={loadingMsgs || sending}
+            error={threadError}
+          />
+        )}
 
-              <div className="mx-auto mt-8 inline-flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-4 py-2 text-xs text-amber-300/80">
-                <Hammer className="h-3.5 w-3.5" />
-                Chat workspace incoming
-              </div>
-            </>
-          )}
-        </div>
+        {consult && !consult.collapsed && (
+          <CouncilPanel
+            consult={consult}
+            onSynthesize={handleSynthesize}
+            onClose={closeConsult}
+          />
+        )}
+
+        <ChatComposer onSend={handleSend} onConsult={handleConsult} disabled={sending} />
       </main>
     </div>
   );
+
+  async function newConversation() {
+    try {
+      const c = await base44.entities.Conversation.create({
+        title: "New conversation",
+        last_message_preview: "",
+      });
+      setConversations((prev) => [c, ...prev]);
+      setActiveId(c.id);
+      setMessages([]);
+      closeConsult();
+    } catch (e) {
+      console.error(e);
+    }
+  }
 }
