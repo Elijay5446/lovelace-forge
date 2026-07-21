@@ -30,12 +30,12 @@ export default function Home() {
     <div className="relative min-h-screen w-full overflow-hidden bg-black text-stone-200 selection:bg-amber-500/30">
       <section className="relative flex min-h-screen items-center">
         {/* Radial brass glow behind the clockwork woman */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-end">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="h-[85vw] w-[85vw] rounded-full bg-[radial-gradient(circle,rgba(245,158,11,0.14),rgba(245,158,11,0.05)_38%,transparent_68%)] md:h-[60vw] md:w-[60vw]" />
         </div>
 
         {/* Clockwork woman — transparent PNG, blended into black */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 flex w-full items-center justify-center opacity-60 md:w-[58%] md:justify-end md:opacity-75">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-70">
           <Image
             src={HERO_IMAGE}
             alt="Steampunk clockwork woman — brass gears and mechanisms forming her head and hair"
@@ -45,11 +45,11 @@ export default function Home() {
         </div>
 
         {/* Left-side darkening so copy stays readable over the image */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.65)_100%)]" />
 
         {/* Content */}
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-6 md:px-10">
-          <div className="max-w-xl">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-6 text-center md:px-10">
+          <div className="mx-auto max-w-2xl">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -76,7 +76,7 @@ export default function Home() {
               </p>
 
               {/* Three pillars */}
-              <div className="mt-9 grid max-w-lg grid-cols-1 gap-5 sm:grid-cols-3">
+              <div className="mx-auto mt-9 grid max-w-lg grid-cols-1 gap-5 sm:grid-cols-3">
                 {PILLARS.map((p, i) => (
                   <motion.div
                     key={p.title}

@@ -96,18 +96,18 @@
 @keyframes forge-pulse {
   0%, 100% {
     text-shadow:
-      0 0 10px rgba(251, 191, 36, 0.18),
-      0 0 28px rgba(245, 158, 11, 0.10),
-      0 0 1px rgba(255, 224, 160, 0.35);
+      0 0 6px rgba(251, 191, 36, 0.10),
+      0 0 16px rgba(245, 158, 11, 0.05),
+      0 0 1px rgba(255, 224, 160, 0.25);
   }
   50% {
     text-shadow:
-      0 0 22px rgba(251, 191, 36, 0.50),
-      0 0 56px rgba(245, 158, 11, 0.28),
-      0 0 3px rgba(255, 232, 178, 0.65);
+      0 0 12px rgba(251, 191, 36, 0.22),
+      0 0 30px rgba(245, 158, 11, 0.12),
+      0 0 2px rgba(255, 232, 178, 0.40);
   }
 }
 
 .forge-title {
-  animation: forge-pulse 3.5s ease-in-out infinite;
+  animation: forge-pulse 4s ease-in-out infinite;
 }
