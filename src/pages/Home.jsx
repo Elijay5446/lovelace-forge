@@ -118,6 +118,57 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Origin story — the Ada Lovelace connection */}
+      <section className="relative mx-auto w-full max-w-3xl px-6 py-24 text-center md:px-10 md:py-32">
+        <motion.span
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="mb-7 inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-amber-500/80"
+        >
+          <span className="h-px w-7 bg-amber-500/40" />
+          Named for a Visionary
+        </motion.span>
+
+        <motion.p
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: "easeOut", delay: 0.05 }}
+          className="mx-auto max-w-[640px] text-base leading-relaxed text-stone-100/85 md:text-[1.05rem]"
+        >
+          Ada Lovelace saw what no one else could — that a machine of gears and
+          cogs could do more than calculate; it could create. In 1843 she wrote
+          the{" "}
+          <span className="font-medium text-amber-300">
+            world's first algorithm
+          </span>
+          , becoming history's{" "}
+          <span className="font-medium text-amber-300">
+            first computer programmer
+          </span>
+          , and imagined machines composing music and art a century before they
+          existed.
+        </motion.p>
+
+        <motion.p
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: "easeOut", delay: 0.15 }}
+          className="mx-auto mt-6 max-w-[640px] text-base leading-relaxed text-stone-100/85 md:text-[1.05rem]"
+        >
+          Lovelace Forge carries her spark. Where she saw poetry in the engine,
+          we build intelligence in the forge — an AI companion that turns
+          imagination into working game code.{" "}
+          <span className="font-medium text-amber-300">
+            Born from community.
+          </span>{" "}
+          <span className="font-medium text-amber-300">Built for humanity.</span>
+        </motion.p>
+      </section>
     </div>
   );
 }
