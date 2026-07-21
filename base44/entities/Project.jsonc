@@ -1,0 +1,69 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Title",
+      "description": "Project name"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description",
+      "description": "What does this project do?"
+    },
+    "tech_stack": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "Tech Stack",
+      "description": "Technologies used"
+    },
+    "author": {
+      "type": "string",
+      "title": "Author",
+      "description": "Creator name"
+    },
+    "image_url": {
+      "type": "string",
+      "title": "Image URL",
+      "format": "uri"
+    },
+    "github_url": {
+      "type": "string",
+      "title": "GitHub URL",
+      "format": "uri"
+    },
+    "demo_url": {
+      "type": "string",
+      "title": "Demo URL",
+      "format": "uri"
+    },
+    "category": {
+      "type": "string",
+      "title": "Category",
+      "enum": [
+        "web",
+        "mobile",
+        "ai",
+        "game",
+        "tool",
+        "hardware",
+        "other"
+      ],
+      "default": "web"
+    },
+    "featured": {
+      "type": "boolean",
+      "title": "Featured",
+      "default": false
+    }
+  },
+  "required": [
+    "title",
+    "description",
+    "author",
+    "category"
+  ]
+}
