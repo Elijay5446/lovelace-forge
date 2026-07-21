@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Code2, Network, Cable, ArrowRight } from "lucide-react";
 import { Image } from "@/components/ui/image";
+import { useAuth } from "@/lib/AuthContext";
 
 const HERO_IMAGE =
   "https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg";
@@ -26,6 +27,7 @@ const PILLARS = [
 ];
 
 export default function Home() {
+  const { isAuthenticated } = useAuth();
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-black text-stone-200 selection:bg-amber-500/30">
       <section className="relative flex min-h-screen items-center">
@@ -105,7 +107,7 @@ export default function Home() {
                 className="mt-11"
               >
                 <Link
-                  to="/register"
+                  to={isAuthenticated ? "/app" : "/register"}
                   className="group inline-flex items-center gap-2 rounded-md border border-amber-500/50 px-7 py-3 text-sm font-medium tracking-wide text-amber-50 shadow-[0_0_22px_rgba(245,158,11,0.22)] transition-all duration-300 hover:border-amber-300/80 hover:bg-amber-500/10 hover:shadow-[0_0_34px_rgba(245,158,11,0.45)]"
                 >
                   Enter the Forge
