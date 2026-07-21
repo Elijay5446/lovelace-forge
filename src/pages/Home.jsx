@@ -34,8 +34,11 @@ export default function Home() {
           <div className="h-[85vw] w-[85vw] rounded-full bg-[radial-gradient(circle,rgba(245,158,11,0.14),rgba(245,158,11,0.05)_38%,transparent_68%)] md:h-[60vw] md:w-[60vw]" />
         </div>
 
-        {/* Clockwork woman — transparent PNG, blended into black */}
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.55]">
+        {/* Clockwork woman — faded atmospheric ghost behind the title */}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.30]"
+          style={{ filter: "blur(1px)" }}
+        >
           <Image
             src={HERO_IMAGE}
             alt="Steampunk clockwork woman — brass gears and mechanisms forming her head and hair"
@@ -44,8 +47,8 @@ export default function Home() {
           />
         </div>
 
-        {/* Left-side darkening so copy stays readable over the image */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(0,0,0,0.65)_100%)]" />
+        {/* Edge vignette so the ghost melts into black at the borders */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_28%,rgba(0,0,0,0.92)_100%)]" />
 
         {/* Content */}
         <div className="relative z-10 mx-auto w-full max-w-7xl px-6 text-center md:px-10">
@@ -60,16 +63,16 @@ export default function Home() {
                 AI Companion · Unity + UFE2
               </span>
 
-              <h1 className="forge-title font-display text-5xl font-bold leading-[1.04] tracking-tight text-stone-100 sm:text-6xl md:text-7xl">
+              <h1 className="forge-title font-display text-6xl font-bold leading-[1.02] tracking-[0.06em] text-[#FFF6E0] drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-7xl md:text-8xl">
                 Lovelace Forge
               </h1>
 
-              <p className="mt-6 text-lg font-light leading-relaxed text-stone-300/90 md:text-xl">
+              <p className="mt-6 text-lg font-normal leading-relaxed text-stone-100/95 md:text-xl">
                 Born from community. Built for humanity. A living intelligence that
                 creates, learns, and evolves — with you.
               </p>
 
-              <p className="mt-5 max-w-lg text-sm leading-relaxed text-stone-400/80 md:text-base">
+              <p className="mt-5 max-w-lg text-sm leading-relaxed text-stone-300/75 md:text-base">
                 A singular AI companion and AAA game-development assistant for Unity
                 creators — engineered for UFE2 fighting games, from rigging and
                 hitboxes to movesets, AI config, and stage lighting.
@@ -103,7 +106,7 @@ export default function Home() {
               >
                 <Link
                   to="/register"
-                  className="group inline-flex items-center gap-2 rounded-md border border-amber-500/40 px-7 py-3 text-sm font-medium tracking-wide text-amber-100 transition-all duration-300 hover:border-amber-400/70 hover:bg-amber-500/5 hover:shadow-[0_0_28px_rgba(245,158,11,0.25)]"
+                  className="group inline-flex items-center gap-2 rounded-md border border-amber-500/50 px-7 py-3 text-sm font-medium tracking-wide text-amber-50 shadow-[0_0_22px_rgba(245,158,11,0.22)] transition-all duration-300 hover:border-amber-300/80 hover:bg-amber-500/10 hover:shadow-[0_0_34px_rgba(245,158,11,0.45)]"
                 >
                   Enter the Forge
                   <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
