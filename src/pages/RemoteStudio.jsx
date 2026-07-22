@@ -301,6 +301,11 @@ const TIPS = [
     body: "CRD traffic is encrypted end-to-end by Google and gated by your PIN. Never share your PIN. For extra safety, turn off remote access when you're done for the day.",
   },
   {
+    icon: "🖥️",
+    title: "Big-screen mode (optional)",
+    body: "a USB-C → HDMI cable plus a Bluetooth keyboard and mouse turns your phone into a full workstation — plug into any TV or monitor and you've got the complete desktop experience of your remote computer, anywhere.",
+  },
+  {
     icon: "↔️",
     title: "Alternative",
     body: "the same loop works with any remote-desktop tool (Parsec for low latency, RustDesk for self-hosted). Chrome Remote Desktop is just the free, zero-config default.",
