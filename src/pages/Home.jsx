@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Code2, Network, Cable, ArrowRight } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { useAuth } from "@/lib/AuthContext";
+import CouncilTeaser from "@/components/landing/CouncilTeaser";
 
 const HERO_IMAGE =
   "https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg";
@@ -169,6 +170,8 @@ export default function Home() {
           <span className="font-medium text-amber-300">Built for humanity.</span>
         </motion.p>
       </section>
+
+      <CouncilTeaser />
 
       <footer className="border-t border-white/5 px-6 py-8 text-center md:px-10">
         <p className="font-display text-xs font-medium tracking-[0.22em] text-amber-500/60">
