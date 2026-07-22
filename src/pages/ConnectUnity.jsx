@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import CopyBlock from "@/components/unity/CopyBlock";
 import GlobalNav from "@/components/GlobalNav";
+import SageHelp from "@/components/unity/SageHelp";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -448,6 +449,8 @@ export default function ConnectUnity() {
           </div>
         </section>
       </main>
+
+      <SageHelp />
     </div>
   );
 }
