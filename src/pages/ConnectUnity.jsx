@@ -223,9 +223,9 @@ export default function ConnectUnity() {
           {/* STEP 1 */}
           <Step number={1} title="Install the Forge Bridge in Unity">
             <p className="text-sm leading-relaxed text-stone-400">
-              The package adds a{" "}
+              The bridge adds a{" "}
               <span className="font-medium text-stone-200">
-                Tools → Lovelace Forge → Start Bridge
+                Tools ▸ Lovelace Forge ▸ Start Bridge
               </span>{" "}
               menu that runs a tiny HTTP listener on{" "}
               <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[12px] text-amber-300">
@@ -233,27 +233,53 @@ export default function ConnectUnity() {
               </code>{" "}
               accepting C# snippets on the main thread.
             </p>
-            <ol className="mt-4 space-y-2 text-sm text-stone-400">
+            <ol className="mt-4 space-y-2.5 text-sm text-stone-400">
               <li className="flex gap-2.5">
                 <Num n={1} />
-                <span>Download the LovelaceForgeBridge package below.</span>
+                <span>Download the Forge Bridge zip (button below) and unzip it.</span>
               </li>
               <li className="flex gap-2.5">
                 <Num n={2} />
                 <span>
-                  In Unity: <span className="text-stone-200">Assets → Import Package → Custom Package</span> → select it → Import All.
+                  Copy{" "}
+                  <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[12px] text-amber-300">
+                    LovelaceForgeBridge.cs
+                  </code>{" "}
+                  into your Unity project under{" "}
+                  <span className="text-stone-200">Assets/Editor/</span> (create the Editor
+                  folder if it doesn't exist). Unity compiles it automatically.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <Num n={3} />
+                <span>
+                  A new menu appears:{" "}
+                  <span className="text-stone-200">Tools ▸ Lovelace Forge ▸ Start Bridge</span>.
+                  Click it. The Unity Console prints{" "}
+                  <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[12px] text-emerald-300">
+                    🟢 Listening on http://localhost:9876
+                  </code>
+                  .
                 </span>
               </li>
             </ol>
+            <p className="mt-3 text-xs leading-relaxed text-stone-500">
+              The zip also includes{" "}
+              <code className="rounded bg-white/5 px-1 py-0.5 font-mono text-[11px] text-stone-300">
+                start_forge_bridge.ps1
+              </code>{" "}
+              for Windows and{" "}
+              <code className="rounded bg-white/5 px-1 py-0.5 font-mono text-[11px] text-stone-300">
+                start_forge_bridge.py
+              </code>{" "}
+              for macOS/Linux — the tunnel launchers used in Step 2 — plus a README.
+            </p>
             <a
-              href="#"
-              onClick={(e) => e.preventDefault()}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
+              href="https://base44.app/api/apps/69f8a0352756110b9a8a3e08/files/mp/public/69f8a0352756110b9a8a3e08/e71ee3136_LovelaceForgeBridge.zip"
+              download
+              className="mt-5 inline-flex items-center gap-2 rounded-lg border-0 bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(245,158,11,0.28)] transition hover:from-amber-400 hover:to-orange-500 hover:shadow-[0_0_34px_rgba(245,158,11,0.45)]"
             >
-              <Download className="h-4 w-4" /> Download Bridge Package
-              <span className="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-stone-400">
-                coming soon
-              </span>
+              <Download className="h-4 w-4" /> ⬇ Download Forge Bridge (.zip)
             </a>
           </Step>
 
