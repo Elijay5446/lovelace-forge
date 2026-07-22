@@ -15,6 +15,7 @@ import ResetPassword from './pages/ResetPassword';
 import AppWorkspace from './pages/AppWorkspace';
 import ProjectsDashboard from './pages/ProjectsDashboard';
 import ProjectDetail from './pages/ProjectDetail';
+import ConnectUnity from './pages/ConnectUnity';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthenticatedApp = () => {
@@ -53,6 +54,7 @@ const AuthenticatedApp = () => {
       <Route path="/app" element={<AppWorkspace />} />
       <Route path="/app/projects" element={<ProjectsDashboard />} />
       <Route path="/app/projects/:id" element={<ProjectDetail />} />
+      <Route path="/app/unity" element={<ConnectUnity />} />
     </Route>
     <Route path="*" element={<PageNotFound />} />
     </Routes>

@@ -1,0 +1,42 @@
+{
+  "name": "BridgeCommandLog",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "title": "Action",
+      "description": "Relay action performed (e.g. execute)"
+    },
+    "code_preview": {
+      "type": "string",
+      "title": "Code Preview",
+      "description": "Truncated preview of the C# sent to Unity"
+    },
+    "success": {
+      "type": "boolean",
+      "title": "Success",
+      "default": false
+    },
+    "duration_ms": {
+      "type": "number",
+      "title": "Duration (ms)"
+    },
+    "result_preview": {
+      "type": "string",
+      "title": "Result Preview",
+      "description": "Truncated preview of Unity's response"
+    }
+  },
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

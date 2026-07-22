@@ -80,7 +80,16 @@ export default function ChatSidebar({
         >
           <FolderCog className="h-4 w-4" /> Projects
         </Link>
-        <NavComing icon={Cable} label="Connect Unity" />
+        <Link
+          to="/app/unity"
+          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
+            pathname.startsWith("/app/unity")
+              ? "bg-white/10 text-stone-100"
+              : "text-stone-400 hover:bg-white/5 hover:text-stone-200"
+          }`}
+        >
+          <Cable className="h-4 w-4" /> Connect Unity
+        </Link>
       </nav>
 
       <div className="flex items-center justify-between border-t border-white/5 p-3">
