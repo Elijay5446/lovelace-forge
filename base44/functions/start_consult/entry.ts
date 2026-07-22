@@ -119,18 +119,18 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Fire-and-forget: run the providers in the background so this request can
-    // return the session id immediately. Each provider saves its own result as
-    // it resolves, letting the UI poll and watch answers appear live.
-    (async () => {
-      await Promise.allSettled(
-        providers.map((p, i) => consultOne(p, pendingRows[i].id))
-      );
-      await base44.entities.ConsultSession.update(consult.id, {
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      }).catch(() => {});
-    })();
+    // Run all providers in parallel and wait for them before responding —
+    // background work after the response is not guaranteed to finish in this
+    // runtime, which previously left some responses stuck in "pending".
+    // Each provider still saves its own result as it resolves, so the UI's
+    // polling sees answers appear live while this request is in flight.
+    await Promise.allSettled(
+      providers.map((p, i) => consultOne(p, pendingRows[i].id))
+    );
+    await base44.entities.ConsultSession.update(consult.id, {
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    }).catch(() => {});
 
     return Response.json({
       consult_session_id: consult.id,
