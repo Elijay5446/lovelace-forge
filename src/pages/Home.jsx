@@ -74,6 +74,11 @@ export default function Home() {
                 An AI that builds games with you — inside your Unity editor.
               </p>
 
+              <p className="mx-auto mt-3 max-w-md text-[11px] leading-relaxed tracking-[0.06em] text-amber-200/55 md:text-xs">
+                Named for Ada Lovelace — who wrote the world's first computer
+                algorithm in 1843, and imagined machines that could create.
+              </p>
+
               <p className="mt-5 max-w-lg text-sm leading-relaxed text-stone-300/75 md:text-base">
                 A singular AI companion and AAA game-development assistant for Unity
                 creators — engineered for UFE2 fighting games, from rigging and
