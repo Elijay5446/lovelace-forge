@@ -71,8 +71,7 @@ export default function Home() {
               </h1>
 
               <p className="mt-6 text-lg font-normal leading-relaxed text-stone-100/95 md:text-xl">
-                Born from community. Built for humanity. A living intelligence that
-                creates, learns, and evolves — with you.
+                An AI that builds games with you — inside your Unity editor.
               </p>
 
               <p className="mt-5 max-w-lg text-sm leading-relaxed text-stone-300/75 md:text-base">
@@ -175,7 +174,7 @@ export default function Home() {
 
       <footer className="border-t border-white/5 px-6 py-8 text-center md:px-10">
         <p className="font-display text-xs font-medium tracking-[0.22em] text-amber-500/60">
-          Born from community. Built for humanity.
+          An AI that builds games with you — inside your Unity editor.
         </p>
       </footer>
     </div>
