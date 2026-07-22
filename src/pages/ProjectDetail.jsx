@@ -5,6 +5,7 @@ import { Loader2, ArrowLeft, LayoutDashboard, ListChecks, Code2 } from "lucide-r
 import ProjectOverview from "@/components/projects/ProjectOverview";
 import BuildPlanTab from "@/components/projects/BuildPlanTab";
 import CodeTab from "@/components/projects/CodeTab";
+import GlobalNav from "@/components/GlobalNav";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -143,8 +144,9 @@ export default function ProjectDetail() {
 
   return (
     <div className="min-h-screen w-full bg-black text-stone-200">
+      <GlobalNav />
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b border-white/5 bg-black/80 backdrop-blur">
+      <header className="sticky top-12 z-20 border-b border-white/5 bg-black/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 md:px-8">
           <div className="flex min-w-0 items-center gap-2.5">
             <button
