@@ -169,6 +169,12 @@ export default function Home() {
           <span className="font-medium text-amber-300">Built for humanity.</span>
         </motion.p>
       </section>
+
+      <footer className="border-t border-white/5 px-6 py-8 text-center md:px-10">
+        <p className="font-display text-xs font-medium tracking-[0.22em] text-amber-500/60">
+          Born from community. Built for humanity.
+        </p>
+      </footer>
     </div>
   );
 }

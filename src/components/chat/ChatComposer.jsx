@@ -1,21 +1,19 @@
-import React, { useState } from "react";
+import React from "react";
 import { Send, Brain } from "lucide-react";
 
-export default function ChatComposer({ onSend, onConsult, disabled }) {
-  const [text, setText] = useState("");
-
+export default function ChatComposer({ value, onChange, onSend, onConsult, disabled, inputRef }) {
   const submit = () => {
-    const t = text.trim();
+    const t = (value || "").trim();
     if (!t || disabled) return;
     onSend(t);
-    setText("");
+    onChange("");
   };
 
   const consult = () => {
-    const t = text.trim();
+    const t = (value || "").trim();
     if (!t || disabled) return;
     onConsult(t);
-    setText("");
+    onChange("");
   };
 
   const handleKey = (e) => {
@@ -30,8 +28,9 @@ export default function ChatComposer({ onSend, onConsult, disabled }) {
       <div className="mx-auto max-w-3xl">
         <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-2 transition focus-within:border-amber-500/40">
           <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+            ref={inputRef}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKey}
             disabled={disabled}
             rows={1}
@@ -40,7 +39,7 @@ export default function ChatComposer({ onSend, onConsult, disabled }) {
           />
           <button
             onClick={consult}
-            disabled={disabled || !text.trim()}
+            disabled={disabled || !(value || "").trim()}
             title="Consult the Council"
             className="flex h-9 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 text-xs font-medium text-amber-100 transition hover:bg-amber-500/20 disabled:opacity-40"
           >
@@ -48,7 +47,7 @@ export default function ChatComposer({ onSend, onConsult, disabled }) {
           </button>
           <button
             onClick={submit}
-            disabled={disabled || !text.trim()}
+            disabled={disabled || !(value || "").trim()}
             className="flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-3 text-xs font-medium text-white transition hover:from-amber-500 hover:to-orange-500 disabled:opacity-40"
           >
             <Send className="h-3.5 w-3.5" /> Send

@@ -1,13 +1,13 @@
 import React from "react";
-import { Brain, Boxes, Zap, Cpu } from "lucide-react";
+import { Brain, MessageSquare, Code2, ListChecks } from "lucide-react";
 
 const EXAMPLES = [
-  { icon: Boxes, text: "How do I set up hitboxes for a UFE2 character?" },
-  { icon: Zap, text: "Walk me through the Meshy → Mixamo → Unity rigging pipeline." },
-  { icon: Cpu, text: "Write a C# helper to log UFE2 move states." },
+  { icon: MessageSquare, text: "How do I add a new character to UFE2?" },
+  { icon: Code2, text: "Generate a C# script that spawns a projectile" },
+  { icon: ListChecks, text: "Give me a build plan for a 2-round match timer" },
 ];
 
-export default function EmptyState({ onSend }) {
+export default function EmptyState({ onPrefill }) {
   return (
     <div className="flex flex-1 items-center justify-center px-6 py-10">
       <div className="w-full max-w-xl text-center">
@@ -24,18 +24,21 @@ export default function EmptyState({ onSend }) {
           <span className="text-amber-300">consult the council</span> and I'll
           synthesize the best answer.
         </p>
-        <div className="mt-7 grid gap-2.5">
+        <div className="mt-7 flex flex-wrap justify-center gap-2.5">
           {EXAMPLES.map((ex) => (
             <button
               key={ex.text}
-              onClick={() => onSend(ex.text)}
-              className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-left text-sm text-stone-300 transition hover:border-amber-500/30 hover:bg-amber-500/[0.04]"
+              onClick={() => onPrefill?.(ex.text)}
+              className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm text-stone-300 transition hover:border-amber-500/40 hover:bg-amber-500/[0.06] hover:text-amber-100"
             >
-              <ex.icon className="h-4 w-4 shrink-0 text-amber-400/70" />
+              <ex.icon className="h-3.5 w-3.5 shrink-0 text-amber-400/70" />
               {ex.text}
             </button>
           ))}
         </div>
+        <p className="mt-4 text-[11px] text-stone-600">
+          Tap a prompt to drop it into the composer.
+        </p>
       </div>
     </div>
   );

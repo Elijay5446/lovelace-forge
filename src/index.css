@@ -113,3 +113,16 @@
 .forge-title {
   animation: forge-pulse 4s ease-in-out infinite;
 }
+
+@keyframes council-glow {
+  0%, 100% {
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.10);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(245, 158, 11, 0.28);
+  }
+}
+
+.council-glow {
+  animation: council-glow 3.2s ease-in-out infinite;
+}

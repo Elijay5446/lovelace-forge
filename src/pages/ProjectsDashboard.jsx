@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Hammer, Plus, Loader2, X, FolderOpen } from "lucide-react";
 import ProjectCard from "@/components/projects/ProjectCard";
 import ProjectForm from "@/components/projects/ProjectForm";
+import GlobalNav from "@/components/GlobalNav";
+import { ProjectGridSkeleton } from "@/components/Skeletons";
 
 export default function ProjectsDashboard() {
   const { user, logout } = useAuth();
@@ -54,7 +56,9 @@ export default function ProjectsDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-black text-stone-200">
+    <div className="flex min-h-screen w-full flex-col bg-black text-stone-200">
+      <GlobalNav />
+      <div className="flex flex-1">
       {/* Slim brand rail */}
       <aside className="hidden w-16 shrink-0 flex-col items-center border-r border-white/5 bg-[#0a0a0b] py-4 md:flex">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700">
@@ -101,9 +105,7 @@ export default function ProjectsDashboard() {
         {/* Body */}
         <main className="flex-1 px-4 py-6 md:px-8">
           {loading ? (
-            <div className="flex justify-center py-20 text-stone-600">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
+            <ProjectGridSkeleton />
           ) : projects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-orange-700/15 ring-1 ring-amber-500/15">
@@ -169,6 +171,7 @@ export default function ProjectsDashboard() {
           </motion.div>
         </div>
       )}
+      </div>
     </div>
   );
 }

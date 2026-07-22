@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Plus, Loader2, LogOut, FolderCog, Cable, MessageSquare } from "lucide-react";
+import { ConversationListSkeleton } from "@/components/Skeletons";
 
 export default function ChatSidebar({
   conversations,
@@ -29,9 +30,7 @@ export default function ChatSidebar({
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {loading ? (
-          <div className="flex justify-center py-6 text-stone-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </div>
+          <ConversationListSkeleton />
         ) : conversations.length === 0 ? (
           <p className="px-3 py-6 text-center text-xs text-stone-600">
             No conversations yet.

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
+import GlobalNav from "@/components/GlobalNav";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import MessageList from "@/components/chat/MessageList";
 import ChatComposer from "@/components/chat/ChatComposer";
@@ -23,6 +24,8 @@ export default function AppWorkspace() {
   const [threadError, setThreadError] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
   const [consult, setConsult] = useState(null);
+  const [composerText, setComposerText] = useState("");
+  const composerRef = useRef(null);
   const pollRef = useRef(null);
 
   const loadConversations = useCallback(async () => {
@@ -81,6 +84,11 @@ export default function AppWorkspace() {
     setMobileNav(false);
     closeConsult();
     loadMessages(id);
+  };
+
+  const prefillComposer = (text) => {
+    setComposerText(text);
+    setTimeout(() => composerRef.current?.focus(), 0);
   };
 
   const ensureConversation = async (seedText) => {
@@ -187,6 +195,35 @@ export default function AppWorkspace() {
         consult_session_id: consult.consultSessionId,
       });
       const data = res.data || res;
+
+      // Stamp the contributing provider names onto the synthesis message so the
+      // chat thread can showcase them ("Synthesized from N models · …").
+      const providers = [
+        ...new Set(
+          (consult.responses || [])
+            .filter((r) => r.status === "completed" && r.content)
+            .map((r) => r.provider || r.model_id)
+            .filter(Boolean)
+        ),
+      ];
+      if (providers.length > 0 && activeId) {
+        try {
+          const recent = await base44.entities.Message.filter(
+            { conversation_id: activeId, role: "consult_synthesis" },
+            "-created_date",
+            5
+          );
+          const synth = (recent || [])[0];
+          if (synth) {
+            await base44.entities.Message.update(synth.id, {
+              model_source: `lovelace-synthesis||${providers.join(", ")}`,
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       await loadMessages(activeId);
       await loadConversations();
       setConsult((prev) => ({
@@ -210,70 +247,81 @@ export default function AppWorkspace() {
   const showEmpty = !activeId && messages.length === 0;
 
   return (
-    <div className="relative flex h-screen w-full overflow-hidden bg-black text-stone-200">
-      {mobileNav && (
-        <div
-          className="fixed inset-0 z-30 bg-black/60 md:hidden"
-          onClick={() => setMobileNav(false)}
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-black text-stone-200">
+      <GlobalNav />
+
+      <div className="relative flex flex-1 min-h-0 overflow-hidden">
+        {mobileNav && (
+          <div
+            className="fixed inset-0 z-30 bg-black/60 md:hidden"
+            onClick={() => setMobileNav(false)}
+          />
+        )}
+
+        <ChatSidebar
+          conversations={conversations}
+          activeId={activeId}
+          onSelect={selectConversation}
+          onNew={() => {
+            newConversation();
+            setMobileNav(false);
+          }}
+          loading={loadingConvos}
+          user={user}
+          onLogout={logout}
+          mobileNav={mobileNav}
+          className={`fixed z-40 h-full transition-transform md:static md:translate-x-0 ${
+            mobileNav ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          }`}
         />
-      )}
 
-      <ChatSidebar
-        conversations={conversations}
-        activeId={activeId}
-        onSelect={selectConversation}
-        onNew={() => {
-          newConversation();
-          setMobileNav(false);
-        }}
-        loading={loadingConvos}
-        user={user}
-        onLogout={logout}
-        mobileNav={mobileNav}
-        className={`fixed z-40 h-full transition-transform md:static md:translate-x-0 ${
-          mobileNav ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      />
-
-      <main className="relative flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-white/5 px-4 py-3 md:px-6">
-          <div className="flex items-center gap-2.5">
-            <button
-              className="text-stone-400 hover:text-stone-200 md:hidden"
-              onClick={() => setMobileNav((v) => !v)}
-              aria-label="Toggle conversations"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700">
-              <Hammer className="h-3.5 w-3.5 text-white" />
+        <main className="relative flex flex-1 flex-col">
+          <header className="flex items-center justify-between border-b border-white/5 px-4 py-3 md:px-6">
+            <div className="flex items-center gap-2.5">
+              <button
+                className="text-stone-400 hover:text-stone-200 md:hidden"
+                onClick={() => setMobileNav((v) => !v)}
+                aria-label="Toggle conversations"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700">
+                <Hammer className="h-3.5 w-3.5 text-white" />
+              </div>
+              <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                {activeConvo?.title || "Lovelace Forge"}
+              </span>
             </div>
-            <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
-              {activeConvo?.title || "Lovelace Forge"}
-            </span>
-          </div>
-        </header>
+          </header>
 
-        {showEmpty ? (
-          <EmptyState onSend={handleSend} />
-        ) : (
-          <MessageList
-            messages={messages}
-            loading={loadingMsgs || sending}
-            error={threadError}
+          {showEmpty ? (
+            <EmptyState onPrefill={prefillComposer} />
+          ) : (
+            <MessageList
+              messages={messages}
+              loading={loadingMsgs || sending}
+              error={threadError}
+            />
+          )}
+
+          {consult && !consult.collapsed && (
+            <CouncilPanel
+              consult={consult}
+              onSynthesize={handleSynthesize}
+              onClose={closeConsult}
+            />
+          )}
+
+          <ChatComposer
+            value={composerText}
+            onChange={setComposerText}
+            inputRef={composerRef}
+            onSend={handleSend}
+            onConsult={handleConsult}
+            disabled={sending}
           />
-        )}
-
-        {consult && !consult.collapsed && (
-          <CouncilPanel
-            consult={consult}
-            onSynthesize={handleSynthesize}
-            onClose={closeConsult}
-          />
-        )}
-
-        <ChatComposer onSend={handleSend} onConsult={handleConsult} disabled={sending} />
-      </main>
+        </main>
+      </div>
     </div>
   );
 

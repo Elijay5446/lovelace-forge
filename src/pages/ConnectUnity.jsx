@@ -19,6 +19,7 @@ import {
   Check,
 } from "lucide-react";
 import CopyBlock from "@/components/unity/CopyBlock";
+import GlobalNav from "@/components/GlobalNav";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -66,6 +67,12 @@ export default function ConnectUnity() {
   const [checking, setChecking] = useState(true);
   const [message, setMessage] = useState({ kind: "", text: "" });
   const [tab, setTab] = useState("quick");
+  const [lastSeen, setLastSeen] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const i = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(i);
+  }, []);
 
   const refreshStatus = useCallback(async () => {
     setChecking(true);
@@ -75,8 +82,11 @@ export default function ConnectUnity() {
       if (data?.bridge) {
         setStatus(data.bridge.status);
         if (data.bridge.tunnel_url) setTunnelUrl(data.bridge.tunnel_url);
+        if (data.bridge.status === "connected") setLastSeen(Date.now());
       } else {
-        setStatus(data?.status || "not_configured");
+        const s = data?.status || "not_configured";
+        setStatus(s);
+        if (s === "connected") setLastSeen(Date.now());
       }
     } catch (e) {
       const msg = e?.response?.data?.error || e?.message || "Could not reach the bridge relay.";
@@ -104,6 +114,7 @@ export default function ConnectUnity() {
       if (!data?.success) throw new Error(data?.error || "Connection failed.");
       const s = data.bridge?.status;
       setStatus(s);
+      if (s === "connected") setLastSeen(Date.now());
       if (s === "connected") {
         setMessage({
           kind: "success",
@@ -143,7 +154,8 @@ export default function ConnectUnity() {
 
   return (
     <div className="min-h-screen w-full bg-black text-stone-200">
-      <header className="sticky top-0 z-20 border-b border-white/5 bg-black/80 backdrop-blur">
+      <GlobalNav />
+      <header className="sticky top-12 z-20 border-b border-white/5 bg-black/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3.5 md:px-8">
           <div className="flex items-center gap-2.5">
             <button
@@ -217,6 +229,21 @@ export default function ConnectUnity() {
                 : "Not connected to a live editor yet."}
             </span>
           </div>
+
+          {connected && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-emerald-300/80">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+              </span>
+              <span className="font-medium">Live · bridge connected</span>
+              {lastSeen && (
+                <span className="text-stone-500">
+                  · last seen {relativeTime(now - lastSeen)}
+                </span>
+              )}
+            </div>
+          )}
         </motion.section>
 
         <div className="mt-12 space-y-10">
@@ -427,6 +454,15 @@ export default function ConnectUnity() {
 
 function friendlyKey() {
   return "Lovelace needs her Groq API key configured to think — ask your admin to set GROQ_API_KEY.";
+}
+
+function relativeTime(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 5) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.round(m / 60)}h ago`;
 }
 
 function Step({ number, title, children }) {
