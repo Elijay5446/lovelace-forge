@@ -17,6 +17,7 @@ import ProjectsDashboard from './pages/ProjectsDashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import ConnectUnity from './pages/ConnectUnity';
 import Capabilities from './pages/Capabilities';
+import RemoteStudio from './pages/RemoteStudio';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthenticatedApp = () => {
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
       <Route path="/app/projects/:id" element={<ProjectDetail />} />
       <Route path="/app/unity" element={<ConnectUnity />} />
       <Route path="/app/capabilities" element={<Capabilities />} />
+      <Route path="/app/remote-studio" element={<RemoteStudio />} />
     </Route>
     <Route path="*" element={<PageNotFound />} />
     </Routes>
