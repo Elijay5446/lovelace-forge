@@ -1,16 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
 import { motion } from "framer-motion";
-import { Hammer, Plus, Loader2, X, FolderOpen } from "lucide-react";
+import { Hammer, Plus, X } from "lucide-react";
 import ProjectCard from "@/components/projects/ProjectCard";
 import ProjectForm from "@/components/projects/ProjectForm";
 import GlobalNav from "@/components/GlobalNav";
 import { ProjectGridSkeleton } from "@/components/Skeletons";
 
 export default function ProjectsDashboard() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [counts, setCounts] = useState({});
@@ -56,91 +54,67 @@ export default function ProjectsDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-black text-stone-200">
+    <div className="min-h-screen w-full bg-black text-stone-200">
       <GlobalNav />
-      <div className="flex flex-1">
-      {/* Slim brand rail */}
-      <aside className="hidden w-16 shrink-0 flex-col items-center border-r border-white/5 bg-[#0a0a0b] py-4 md:flex">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700">
-          <Hammer className="h-4 w-4 text-white" />
-        </div>
-        <div className="mt-auto flex flex-col items-center gap-3">
-          <button
-            onClick={() => navigate("/app")}
-            title="Back to chat"
-            className="text-stone-500 transition hover:text-amber-400"
-          >
-            <FolderOpen className="h-5 w-5" />
-          </button>
-        </div>
-      </aside>
-
-      <div className="flex flex-1 flex-col">
-        {/* Header */}
-        <header className="flex items-center justify-between border-b border-white/5 px-4 py-3.5 md:px-8">
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => navigate("/app")}
-              className="text-stone-400 hover:text-stone-200 md:hidden"
-            >
-              <FolderOpen className="h-5 w-5" />
-            </button>
-            <span className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+      <main className="mx-auto max-w-6xl px-4 py-10 md:px-8 md:py-14">
+        {/* Hero header */}
+        <header className="mb-9 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="mb-3 inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-amber-500/80">
+              <span className="h-px w-7 bg-amber-500/50" />
+              Your Studio
+            </span>
+            <h1 className="font-display text-4xl font-bold tracking-tight text-stone-100 md:text-5xl">
               Projects
-            </span>
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone-400">
+              Every build, plan, and line of code Lovelace forges with you.
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden truncate text-xs text-stone-500 sm:block">
-              {user?.email}
-            </span>
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-2.5 text-sm font-medium text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10 hover:shadow-[0_0_22px_rgba(245,158,11,0.18)]"
+          >
+            <Plus className="h-4 w-4" /> New Project
+          </button>
+        </header>
+
+        {loading ? (
+          <ProjectGridSkeleton />
+        ) : projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-orange-700/15 ring-1 ring-amber-500/15">
+              <Hammer className="h-6 w-6 text-amber-400/70" />
+            </div>
+            <h2 className="font-display text-lg font-semibold text-stone-200">
+              No projects yet
+            </h2>
+            <p className="mt-1.5 text-sm text-stone-500">
+              Create your first project to start forging.
+            </p>
             <button
               onClick={() => setShowForm(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
+              className="mt-5 flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
             >
               <Plus className="h-4 w-4" /> New Project
             </button>
           </div>
-        </header>
-
-        {/* Body */}
-        <main className="flex-1 px-4 py-6 md:px-8">
-          {loading ? (
-            <ProjectGridSkeleton />
-          ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/15 to-orange-700/15 ring-1 ring-amber-500/15">
-                <Hammer className="h-6 w-6 text-amber-400/70" />
-              </div>
-              <h2 className="font-display text-lg font-semibold text-stone-200">
-                No projects yet
-              </h2>
-              <p className="mt-1.5 text-sm text-stone-500">
-                Create your first project to start forging.
-              </p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="mt-5 flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
-              >
-                <Plus className="h-4 w-4" /> New Project
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {projects.map((p, i) => (
-                <ProjectCard
-                  key={p.id}
-                  project={p}
-                  index={i}
-                  artifactCount={counts[p.id]?.a || 0}
-                  taskCount={counts[p.id]?.t || 0}
-                  onSelect={(proj) => navigate(`/app/projects/${proj.id}`)}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </div>
-          )}
-        </main>
-      </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((p, i) => (
+              <ProjectCard
+                key={p.id}
+                project={p}
+                index={i}
+                artifactCount={counts[p.id]?.a || 0}
+                taskCount={counts[p.id]?.t || 0}
+                onSelect={(proj) => navigate(`/app/projects/${proj.id}`)}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        )}
+      </main>
 
       {/* New project modal */}
       {showForm && (
@@ -171,7 +145,6 @@ export default function ProjectsDashboard() {
           </motion.div>
         </div>
       )}
-      </div>
     </div>
   );
 }

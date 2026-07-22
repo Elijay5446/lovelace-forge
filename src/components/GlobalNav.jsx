@@ -8,6 +8,7 @@ const NAV = [
   { to: "/app", label: "Chat", emoji: "💬", match: (p) => p === "/app" },
   { to: "/app/projects", label: "Projects", emoji: "🗂️", match: (p) => p.startsWith("/app/projects") },
   { to: "/app/unity", label: "Connect Unity", emoji: "🌉", match: (p) => p.startsWith("/app/unity") },
+  { to: "/app/capabilities", label: "Capabilities", emoji: "⚡", match: (p) => p.startsWith("/app/capabilities") },
 ];
 
 export default function GlobalNav() {
