@@ -21,6 +21,7 @@ import {
 import CopyBlock from "@/components/unity/CopyBlock";
 import GlobalNav from "@/components/GlobalNav";
 import SageHelp from "@/components/unity/SageHelp";
+import ForgeGuideOverlay from "@/components/unity/ForgeGuideOverlay";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -70,6 +71,7 @@ export default function ConnectUnity() {
   const [tab, setTab] = useState("quick");
   const [lastSeen, setLastSeen] = useState(null);
   const [now, setNow] = useState(Date.now());
+  const [guideOpen, setGuideOpen] = useState(false);
   useEffect(() => {
     const i = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(i);
@@ -115,7 +117,10 @@ export default function ConnectUnity() {
       if (!data?.success) throw new Error(data?.error || "Connection failed.");
       const s = data.bridge?.status;
       setStatus(s);
-      if (s === "connected") setLastSeen(Date.now());
+      if (s === "connected") {
+        setLastSeen(Date.now());
+        setGuideOpen(true);
+      }
       if (s === "connected") {
         setMessage({
           kind: "success",
@@ -245,6 +250,15 @@ export default function ConnectUnity() {
                 </span>
               )}
             </div>
+          )}
+
+          {connected && (
+            <button
+              onClick={() => setGuideOpen(true)}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2 text-sm font-medium text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
+            >
+              <MessagesSquare className="h-4 w-4" /> How to prompt for game-building →
+            </button>
           )}
         </motion.section>
 
@@ -451,6 +465,7 @@ export default function ConnectUnity() {
         </section>
       </main>
 
+      <ForgeGuideOverlay open={guideOpen} onClose={() => setGuideOpen(false)} />
       <SageHelp />
     </div>
   );

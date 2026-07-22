@@ -28,6 +28,17 @@ export default function AppWorkspace() {
   const composerRef = useRef(null);
   const pollRef = useRef(null);
 
+  // Prefill the composer when the Forge Guide overlay launches the user here
+  // with a chosen prompt (?q=...).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+    if (q) {
+      setComposerText(q);
+      setTimeout(() => composerRef.current?.focus(), 0);
+    }
+  }, []);
+
   const loadConversations = useCallback(async () => {
     setLoadingConvos(true);
     try {
