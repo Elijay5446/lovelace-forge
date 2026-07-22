@@ -186,6 +186,7 @@ export default function ConnectUnity() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className="forge-atmosphere relative rounded-xl border border-white/5 p-6 md:p-8"
         >
           <h1 className="font-display text-3xl font-bold tracking-tight text-stone-100 md:text-4xl">
             Connect your live Unity editor

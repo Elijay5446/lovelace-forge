@@ -24,7 +24,7 @@ export default function ProjectCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
       onClick={() => onSelect?.(project)}
-      className="group relative cursor-pointer overflow-hidden rounded-xl border border-white/5 bg-white/[0.02] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-orange-900/10"
+      className="forge-atmosphere-soft group relative cursor-pointer overflow-hidden rounded-xl border border-white/5 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-amber-500/30 hover:shadow-2xl hover:shadow-orange-900/10"
     >
       <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-amber-500/5 blur-2xl transition-opacity group-hover:opacity-100" />
 

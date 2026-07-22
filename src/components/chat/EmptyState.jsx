@@ -9,7 +9,7 @@ const EXAMPLES = [
 
 export default function EmptyState({ onPrefill }) {
   return (
-    <div className="flex flex-1 items-center justify-center px-6 py-10">
+    <div className="forge-atmosphere relative flex flex-1 items-center justify-center px-6 py-10">
       <div className="w-full max-w-xl text-center">
         <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-700 shadow-[0_0_30px_rgba(245,158,11,0.25)]">
           <Brain className="h-7 w-7 text-white" />

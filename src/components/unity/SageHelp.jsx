@@ -96,8 +96,9 @@ export default function SageHelp() {
             className="fixed bottom-5 right-5 z-50 flex h-[min(70vh,520px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-2xl border border-amber-500/25 bg-[#0a0a0b] shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/5 bg-gradient-to-r from-amber-500/10 to-transparent px-4 py-3">
-              <div className="flex items-center gap-2.5">
+            <div className="relative flex items-center justify-between overflow-hidden border-b border-white/5 bg-gradient-to-r from-amber-500/10 to-transparent px-4 py-3">
+              <div className="pointer-events-none absolute inset-0 opacity-[0.12] bg-cover bg-center" style={{ backgroundImage: "url(\"https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg\")" }} />
+              <div className="relative z-10 flex items-center gap-2.5">
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700 shadow-[0_0_18px_rgba(245,158,11,0.4)]">
                   <Brain className="h-4 w-4 text-white" />
                 </span>
@@ -109,7 +110,7 @@ export default function SageHelp() {
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
-                className="text-stone-500 transition hover:text-stone-200"
+                className="relative z-10 text-stone-500 transition hover:text-stone-200"
               >
                 <X className="h-4 w-4" />
               </button>

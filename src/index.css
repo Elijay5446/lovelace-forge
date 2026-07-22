@@ -126,3 +126,21 @@
 .council-glow {
   animation: council-glow 3.2s ease-in-out infinite;
 }
+
+/* Faint clockwork brand motif — used only in "moment" bands, never behind dense content. */
+.forge-atmosphere {
+  background-image:
+    linear-gradient(rgba(10, 10, 11, 0.86), rgba(10, 10, 11, 0.90)),
+    radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.10), transparent 62%),
+    url("https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.forge-atmosphere-soft {
+  background-image:
+    linear-gradient(rgba(10, 10, 11, 0.94), rgba(10, 10, 11, 0.96)),
+    url("https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg");
+  background-size: cover;
+  background-position: center;
+}
