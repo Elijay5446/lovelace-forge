@@ -3,6 +3,14 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 const normalizeUrl = (url) => String(url || "").trim().replace(/\/+$/, "");
 const nowIso = () => new Date().toISOString();
 
+// Auth headers for the user's bridge server. Sends the key in both common
+// styles (Bearer + X-API-Key) — servers ignore headers they don't check.
+const authHeaders = () => {
+  const key = Deno.env.get("UNITY_BRIDGE_API_KEY");
+  if (!key) return {};
+  return { Authorization: `Bearer ${key}`, "X-API-Key": key };
+};
+
 async function fetchWithTimeout(url, opts, timeoutMs) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -21,8 +29,8 @@ async function fetchWithTimeout(url, opts, timeoutMs) {
 async function pingTunnel(tunnelUrl) {
   const base = normalizeUrl(tunnelUrl);
   if (!base) return { ok: false, error: "no url" };
-  for (const path of ["/ping", "/health"]) {
-    const r = await fetchWithTimeout(base + path, { method: "GET" }, 8000);
+  for (const path of ["/health", "/ping"]) {
+    const r = await fetchWithTimeout(base + path, { method: "GET", headers: authHeaders() }, 8000);
     if (r.timeout) return { ok: false, timeout: true };
     if (r.ok && r.status >= 200 && r.status < 300) return { ok: true, path };
   }
@@ -32,15 +40,16 @@ async function pingTunnel(tunnelUrl) {
 // POST C# to the bridge /execute with a 45s hard cap — never hangs longer.
 async function executeOnTunnel(tunnelUrl, code) {
   const base = normalizeUrl(tunnelUrl);
-  const r = await fetchWithTimeout(
-    base + "/execute",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
-    },
-    45000
-  );
+  const opts = {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ code }),
+  };
+  // The user's bridge exposes POST /exec; the Forge Bridge package uses /execute.
+  let r = await fetchWithTimeout(base + "/exec", opts, 45000);
+  if (!r.timeout && r.status === 404) {
+    r = await fetchWithTimeout(base + "/execute", opts, 45000);
+  }
   if (r.timeout) {
     return {
       success: false,
@@ -83,6 +92,26 @@ Deno.serve(async (req) => {
       if (existing) return base44.entities.BridgeSession.update(existing.id, patch);
       return base44.entities.BridgeSession.create({ status: "disconnected", ...patch });
     };
+
+    if (action === "diagnose") {
+      const base = normalizeUrl(body.tunnel_url);
+      const key = Deno.env.get("UNITY_BRIDGE_API_KEY") || "";
+      const styles = {
+        bearer: { Authorization: `Bearer ${key}` },
+        raw_auth: { Authorization: key },
+        x_api_key: { "X-API-Key": key },
+        x_auth_token: { "X-Auth-Token": key },
+        api_key_header: { "api-key": key },
+        query: null,
+      };
+      const results = {};
+      for (const [name, headers] of Object.entries(styles)) {
+        const url = headers ? base + "/health" : base + "/health?api_key=" + encodeURIComponent(key);
+        const r = await fetchWithTimeout(url, { method: "GET", headers: headers || {} }, 8000);
+        results[name] = { status: r.status ?? null, body: (r.body || r.error || "").slice(0, 120) };
+      }
+      return Response.json({ success: true, key_set: !!key, key_length: key.length, results });
+    }
 
     if (action === "register") {
       const tunnelUrl = body.tunnel_url;
