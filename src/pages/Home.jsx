@@ -81,7 +81,7 @@ export default function Home() {
                 algorithm in 1843, and imagined machines that could create.
               </p>
 
-              <p className="mt-5 max-w-lg text-sm leading-relaxed text-stone-300/75 md:text-base">
+              <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-stone-300/75 md:text-base">
                 An AI with a PhD in game development — a senior Unity engineer that
                 connects to your live editor, sees your scenes, writes your code,
                 and builds alongside you from first prototype to shipped game.
