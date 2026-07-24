@@ -48,14 +48,14 @@ const SYNTH_LINES = [
 ];
 const SYNTH_CAPTION = "Synthesized from 3 models.";
 
-const CYCLE = 9600;
+const CYCLE = 16400;
 const T_TYPE = 2300;
 const T_PRESS = 3000;
 const T_FAN = 3200;
 const T_DONE0 = 6000;
 const T_DONE_GAP = 400;
 const T_SYNTH = 7700;
-const T_FADE = 8900;
+const T_FADE = 15700;
 
 const prefersReduced = () =>
   typeof window !== "undefined" &&
