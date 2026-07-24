@@ -5,6 +5,7 @@ import { Code2, Network, Cable, ArrowRight } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { useAuth } from "@/lib/AuthContext";
 import CouncilTeaser from "@/components/landing/CouncilTeaser";
+import CapabilitiesSection from "@/components/landing/CapabilitiesSection";
 
 const HERO_IMAGE =
   "https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg";
@@ -23,7 +24,7 @@ const PILLARS = [
   {
     icon: Cable,
     title: "Lives in Unity",
-    desc: "Connects to your live Unity editor — UFE2 fighting games, end to end.",
+    desc: "Connects to your live Unity editor — sees your scenes, runs your code.",
   },
 ];
 
@@ -63,7 +64,7 @@ export default function Home() {
             >
               <span className="mb-6 inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-amber-500/80">
                 <span className="h-px w-7 bg-amber-500/50" />
-                AI Companion · Unity + UFE2
+                AI Companion · Unity Game Development
               </span>
 
               <h1 className="forge-title font-display text-6xl font-bold leading-[1.02] tracking-[0.06em] text-[#FFF6E0] drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-7xl md:text-8xl">
@@ -80,9 +81,9 @@ export default function Home() {
               </p>
 
               <p className="mt-5 max-w-lg text-sm leading-relaxed text-stone-300/75 md:text-base">
-                A singular AI companion and AAA game-development assistant for Unity
-                creators — engineered for UFE2 fighting games, from rigging and
-                hitboxes to movesets, AI config, and stage lighting.
+                An AI with a PhD in game development — a senior Unity engineer that
+                connects to your live editor, sees your scenes, writes your code,
+                and builds alongside you from first prototype to shipped game.
               </p>
 
               {/* Three pillars */}
@@ -174,6 +175,8 @@ export default function Home() {
           <span className="font-medium text-amber-300">Built for humanity.</span>
         </motion.p>
       </section>
+
+      <CapabilitiesSection />
 
       <CouncilTeaser />
 

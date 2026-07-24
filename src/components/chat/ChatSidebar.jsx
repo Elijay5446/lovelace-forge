@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Plus, Loader2, LogOut, FolderCog, Cable, MessageSquare } from "lucide-react";
+import { Plus, Loader2, LogOut, Cable, MessageSquare } from "lucide-react";
 import { ConversationListSkeleton } from "@/components/Skeletons";
 
 export default function ChatSidebar({
@@ -68,16 +68,6 @@ export default function ChatSidebar({
           }`}
         >
           <MessageSquare className="h-4 w-4" /> Chat
-        </Link>
-        <Link
-          to="/app/projects"
-          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
-            pathname.startsWith("/app/projects")
-              ? "bg-white/10 text-stone-100"
-              : "text-stone-400 hover:bg-white/5 hover:text-stone-200"
-          }`}
-        >
-          <FolderCog className="h-4 w-4" /> Projects
         </Link>
         <Link
           to="/app/unity"

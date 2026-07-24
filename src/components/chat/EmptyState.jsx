@@ -2,9 +2,9 @@ import React from "react";
 import { Brain, MessageSquare, Code2, ListChecks } from "lucide-react";
 
 const EXAMPLES = [
-  { icon: MessageSquare, text: "How do I add a new character to UFE2?" },
+  { icon: MessageSquare, text: "What's in my open Unity scene right now?" },
   { icon: Code2, text: "Generate a C# script that spawns a projectile" },
-  { icon: ListChecks, text: "Give me a build plan for a 2-round match timer" },
+  { icon: ListChecks, text: "Help me design a save/load system for my game" },
 ];
 
 export default function EmptyState({ onPrefill }) {
@@ -18,9 +18,9 @@ export default function EmptyState({ onPrefill }) {
           Welcome to the Forge
         </h1>
         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-stone-400">
-          I'm Lovelace — your AI companion for Unity &amp; UFE2 fighting games.
-          Ask me anything about rigging, hitboxes, movesets, or AI config. Or,
-          for a tough call,{" "}
+          I'm Lovelace — your AI companion for Unity game development. Ask me
+          anything, from gameplay systems and C# to shaders, physics, and
+          performance. Or, for a tough call,{" "}
           <span className="text-amber-300">consult the council</span> and I'll
           synthesize the best answer.
         </p>

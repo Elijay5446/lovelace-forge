@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const SYNTH_SYSTEM =
-  "You are Lovelace Forge. Several expert council members independently answered the user's question. Synthesize their answers into one clear, authoritative best answer for a Unity/UFE2 game developer. Note where the council agreed, resolve where they disagreed with your own judgment, and be warm but precise. Do not just list the answers — integrate them.";
+  "You are Lovelace Forge. Several expert council members independently answered the user's question. Synthesize their answers into one clear, authoritative best answer for a Unity game developer. Note where the council agreed, resolve where they disagreed with your own judgment, and be warm but precise. Do not just list the answers — integrate them.";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";

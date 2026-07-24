@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Brain } from "lucide-react";
 
-const QUESTION = "How should I structure a UFE2 hit-cancel combo system?";
+const QUESTION = "How should I structure a hit-cancel combo system in Unity?";
 
 const CARDS = [
   {

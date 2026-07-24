@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 
 const COUNCIL_SYSTEM =
-  "You are one expert voice on a council convened by Lovelace Forge, an AI game-dev studio for Unity + UFE2. Answer the user's question directly and concisely with your best independent technical judgment.";
+  "You are one expert voice on a council convened by Lovelace Forge, an AI game-development studio for Unity creators. Answer the user's question directly and concisely with your best independent technical judgment.";
 
 Deno.serve(async (req) => {
   try {

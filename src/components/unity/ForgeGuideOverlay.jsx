@@ -7,12 +7,12 @@ const TIPS = [
   {
     icon: ListChecks,
     title: "Start with a goal",
-    body: "“Give me a build plan for a 2-round UFE2 match timer.” Lovelace breaks it into ordered steps.",
+    body: "“Break down how to build an inventory system for my game.” Lovelace turns it into ordered steps.",
   },
   {
     icon: Wand2,
     title: "Ask her to make code",
-    body: "“Generate a C# HitBoxSpawner script.” It lands in the project's Code tab, ready to paste.",
+    body: "“Generate a C# controller for a double-jump.” She writes clean, commented Unity C# ready to use.",
   },
   {
     icon: Terminal,
@@ -22,10 +22,10 @@ const TIPS = [
 ];
 
 const PROMPTS = [
-  "Give me a build plan for a 2-round UFE2 match timer",
-  "Generate a C# script that spawns a hitbox on heavy attack",
   "What's in my open Unity scene right now?",
-  "Outline the steps to add a new playable character to UFE2",
+  "Generate a C# script that spawns enemies in waves",
+  "Review my scene setup and suggest improvements",
+  "Break down how to build a save/load system",
 ];
 
 export default function ForgeGuideOverlay({ open, onClose }) {

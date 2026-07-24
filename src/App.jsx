@@ -13,11 +13,7 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AppWorkspace from './pages/AppWorkspace';
-import ProjectsDashboard from './pages/ProjectsDashboard';
-import ProjectDetail from './pages/ProjectDetail';
 import ConnectUnity from './pages/ConnectUnity';
-import Capabilities from './pages/Capabilities';
-import RemoteStudio from './pages/RemoteStudio';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthenticatedApp = () => {
@@ -54,11 +50,7 @@ const AuthenticatedApp = () => {
     <Route path="/reset-password" element={<ResetPassword />} />
     <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
       <Route path="/app" element={<AppWorkspace />} />
-      <Route path="/app/projects" element={<ProjectsDashboard />} />
-      <Route path="/app/projects/:id" element={<ProjectDetail />} />
       <Route path="/app/unity" element={<ConnectUnity />} />
-      <Route path="/app/capabilities" element={<Capabilities />} />
-      <Route path="/app/remote-studio" element={<RemoteStudio />} />
     </Route>
     <Route path="*" element={<PageNotFound />} />
     </Routes>
