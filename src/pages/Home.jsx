@@ -65,6 +65,7 @@ export default function Home() {
               <span className="mb-6 inline-flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.28em] text-amber-500/80">
                 <span className="h-px w-7 bg-amber-500/50" />
                 AI Companion · Unity Game Development
+                <span className="h-px w-7 bg-amber-500/50" />
               </span>
 
               <h1 className="forge-title font-display text-6xl font-bold leading-[1.02] tracking-[0.06em] text-[#FFF6E0] drop-shadow-[0_2px_20px_rgba(0,0,0,0.85)] sm:text-7xl md:text-8xl">
