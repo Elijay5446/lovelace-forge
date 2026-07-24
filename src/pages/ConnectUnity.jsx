@@ -23,6 +23,7 @@ import GlobalNav from "@/components/GlobalNav";
 import SageHelp from "@/components/unity/SageHelp";
 import ForgeGuideOverlay from "@/components/unity/ForgeGuideOverlay";
 import EasySetup from "@/components/unity/EasySetup";
+import BridgeTroubleshooting from "@/components/unity/BridgeTroubleshooting";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -299,11 +300,26 @@ export default function ConnectUnity() {
                 <span>
                   A new menu appears:{" "}
                   <span className="text-stone-200">Tools ▸ Lovelace Forge ▸ Start Bridge</span>.
-                  Click it. The Unity Console prints{" "}
+                  Click it. The Unity Console shows a bridge message — filter the Console
+                  with <span className="text-stone-200">"Lovelace"</span> if it's noisy.
+                  Seeing{" "}
                   <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[12px] text-emerald-300">
-                    🟢 Listening on http://localhost:9876
-                  </code>
-                  .
+                    Already running on port 9876
+                  </code>{" "}
+                  is perfect too — it means the bridge is already up.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <Num n={4} />
+                <span>
+                  <span className="text-stone-200">Sanity check:</span> open{" "}
+                  <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[12px] text-amber-300">
+                    http://127.0.0.1:9876/ping
+                  </code>{" "}
+                  in your browser. A JSON reply with{" "}
+                  <span className="font-mono text-[12px] text-emerald-300">ok: true</span> means
+                  the bridge is alive. (Use 127.0.0.1 — "localhost" may show "Invalid
+                  Hostname", which is normal.)
                 </span>
               </li>
             </ol>
@@ -434,6 +450,8 @@ export default function ConnectUnity() {
             )}
           </Step>
         </div>
+
+        <BridgeTroubleshooting />
 
         {/* Reliability */}
         <section className="mt-12">
