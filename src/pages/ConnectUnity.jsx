@@ -45,7 +45,7 @@ const ARCH = [
 
 const QUICK_CMDS = [
   "winget install --id Cloudflare.cloudflared",
-  "cloudflared tunnel --url http://localhost:9876",
+  "cloudflared tunnel --url http://127.0.0.1:9876 --http-host-header 127.0.0.1:9876",
 ];
 
 const PERMANENT_STEPS = [

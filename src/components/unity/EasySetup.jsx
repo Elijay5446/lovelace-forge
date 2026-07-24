@@ -21,7 +21,7 @@ echo   in the box below, then paste it into Lovelace Forge.
 echo.
 echo   KEEP THIS WINDOW OPEN while you work.
 echo.
-cloudflared tunnel --url http://localhost:9876
+cloudflared tunnel --url http://127.0.0.1:9876 --http-host-header 127.0.0.1:9876
 echo.
 echo Tunnel stopped.
 pause
