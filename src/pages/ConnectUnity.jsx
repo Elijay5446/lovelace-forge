@@ -22,6 +22,7 @@ import CopyBlock from "@/components/unity/CopyBlock";
 import GlobalNav from "@/components/GlobalNav";
 import SageHelp from "@/components/unity/SageHelp";
 import ForgeGuideOverlay from "@/components/unity/ForgeGuideOverlay";
+import EasySetup from "@/components/unity/EasySetup";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -333,7 +334,14 @@ export default function ConnectUnity() {
               A Cloudflare tunnel gives Lovelace a public HTTPS URL to reach it.
             </p>
 
-            <div className="mt-5 flex gap-1 rounded-lg border border-white/10 bg-white/[0.02] p-1">
+            <div className="mt-4">
+              <EasySetup />
+            </div>
+
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-stone-600">
+              Or do it manually
+            </p>
+            <div className="mt-2 flex gap-1 rounded-lg border border-white/10 bg-white/[0.02] p-1">
               <TabBtn active={tab === "quick"} onClick={() => setTab("quick")}>
                 Quick
               </TabBtn>
