@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CouncilTeaser from "@/components/landing/CouncilTeaser";
 import CapabilitiesSection from "@/components/landing/CapabilitiesSection";
 import TextToGame from "@/components/landing/TextToGame";
+import ScrollHint from "@/components/landing/ScrollHint";
 import UnderTheHood from "@/components/landing/UnderTheHood";
 
 const HERO_IMAGE =
@@ -126,6 +127,8 @@ export default function Home() {
             </motion.div>
           </div>
         </div>
+
+        <ScrollHint />
       </section>
 
       {/* Origin story — the Ada Lovelace connection */}
