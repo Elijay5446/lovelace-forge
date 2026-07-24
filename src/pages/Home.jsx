@@ -6,6 +6,7 @@ import { Image } from "@/components/ui/image";
 import { useAuth } from "@/lib/AuthContext";
 import CouncilTeaser from "@/components/landing/CouncilTeaser";
 import CapabilitiesSection from "@/components/landing/CapabilitiesSection";
+import TextToGame from "@/components/landing/TextToGame";
 
 const HERO_IMAGE =
   "https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg";
@@ -176,6 +177,8 @@ export default function Home() {
           <span className="font-medium text-amber-300">Built for humanity.</span>
         </motion.p>
       </section>
+
+      <TextToGame />
 
       <CapabilitiesSection />
 
