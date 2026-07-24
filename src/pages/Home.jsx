@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 import CouncilTeaser from "@/components/landing/CouncilTeaser";
 import CapabilitiesSection from "@/components/landing/CapabilitiesSection";
 import TextToGame from "@/components/landing/TextToGame";
+import UnderTheHood from "@/components/landing/UnderTheHood";
 
 const HERO_IMAGE =
   "https://media.base44.com/images/public/69f8a0352756110b9a8a3e08/314e5e8f6_generated-image.jpg";
@@ -184,9 +185,14 @@ export default function Home() {
 
       <CouncilTeaser />
 
+      <UnderTheHood />
+
       <footer className="border-t border-white/5 px-6 py-8 text-center md:px-10">
         <p className="font-display text-xs font-medium tracking-[0.22em] text-amber-500/60">
           An AI that builds games with you — inside your Unity editor.
+        </p>
+        <p className="mt-2 text-[10px] tracking-[0.18em] text-stone-600">
+          Powered entirely by Base44 backend functions.
         </p>
       </footer>
     </div>
