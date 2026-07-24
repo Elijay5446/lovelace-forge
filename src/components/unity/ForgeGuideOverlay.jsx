@@ -21,12 +21,17 @@ const TIPS = [
   },
 ];
 
-const PROMPTS = [
-  "What's in my open Unity scene right now?",
-  "Generate a C# script that spawns enemies in waves",
-  "Review my scene setup and suggest improvements",
-  "Break down how to build a save/load system",
+const GAME_TYPES = [
+  { label: "🥊 Fighting game", type: "a fighting game (consider frameworks like UFE2)" },
+  { label: "🏃 Platformer", type: "a 2D or 3D platformer" },
+  { label: "⚔️ RPG / Adventure", type: "an RPG or adventure game" },
+  { label: "🔫 FPS / Shooter", type: "a first-person or third-person shooter" },
+  { label: "🧩 Puzzle / Casual", type: "a puzzle or casual game" },
+  { label: "🏎️ Racing / Sports", type: "a racing or sports game" },
 ];
+
+const kickoffPrompt = (type) =>
+  `We're building ${type} in Unity. First, recommend the assets, packages, or frameworks I should buy or install to save time (with rough prices). Then break the build down into ordered steps we can start on together.`;
 
 export default function ForgeGuideOverlay({ open, onClose }) {
   const navigate = useNavigate();
@@ -95,20 +100,23 @@ export default function ForgeGuideOverlay({ open, onClose }) {
             </div>
 
             <p className="mt-5 mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-500/80">
-              <Sparkles className="h-3.5 w-3.5" /> Try one now
+              <Sparkles className="h-3.5 w-3.5" /> What kind of game are we building?
             </p>
-            <div className="flex flex-col gap-2">
-              {PROMPTS.map((p) => (
+            <div className="grid grid-cols-2 gap-2">
+              {GAME_TYPES.map((g) => (
                 <button
-                  key={p}
-                  onClick={() => pick(p)}
-                  className="group flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3.5 py-2.5 text-left text-sm text-stone-300 transition hover:border-amber-500/40 hover:bg-amber-500/[0.06] hover:text-amber-100"
+                  key={g.label}
+                  onClick={() => pick(kickoffPrompt(g.type))}
+                  className="group flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-left text-sm text-stone-300 transition hover:border-amber-500/40 hover:bg-amber-500/[0.06] hover:text-amber-100"
                 >
-                  <span className="leading-snug">{p}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-stone-600 transition group-hover:translate-x-0.5 group-hover:text-amber-400" />
+                  <span className="leading-snug">{g.label}</span>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 text-stone-600 transition group-hover:translate-x-0.5 group-hover:text-amber-400" />
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-[11px] text-stone-600">
+              Pick one and Lovelace will suggest assets & packages to buy (like UFE2), then plan the build with you.
+            </p>
 
             <div className="mt-5 flex items-center justify-between border-t border-white/5 pt-4">
               <button
