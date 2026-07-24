@@ -75,14 +75,14 @@ export default function SageHelp() {
             exit={{ opacity: 0, scale: 0.85 }}
             transition={{ duration: 0.2 }}
             onClick={() => setOpen(true)}
-            aria-label="Ask the Forge Sage"
+            aria-label="Need help connecting to Unity?"
             className="group fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_26px_rgba(245,158,11,0.35)] transition hover:shadow-[0_0_40px_rgba(245,158,11,0.55)]"
           >
             <span className="relative flex h-4 w-4 items-center justify-center">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/40" />
               <Sparkles className="relative h-4 w-4" />
             </span>
-            <span className="hidden sm:inline">Ask the Sage</span>
+            <span className="hidden sm:inline">Need Help Connecting?</span>
           </motion.button>
         )}
       </AnimatePresence>
