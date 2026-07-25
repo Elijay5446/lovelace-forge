@@ -1,77 +1,104 @@
-# Base44 Project
+# 🔥 Lovelace Forge
 
-Use this repository to run and edit the app locally, then publish changes back through Base44.
+> **An AI that builds games with you — inside your Unity editor.**
+> Named for Ada Lovelace, who wrote the world's first algorithm in 1843 and imagined machines that could create.
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+**Base44 Dev Build-off 2026 Entry** · App ID: `69f8a0352756110b9a8a3e08`
 
-## Prerequisites
+Lovelace Forge is a senior-Unity-engineer AI companion. It connects to your **live Unity editor**, sees your scenes, writes and runs your C#, plans your project, and — its signature move — **consults a council of AI models in parallel and synthesizes their answers into one authoritative response**.
 
-1. Clone the repository using the project's Git URL.
-2. Navigate to the project directory.
-3. Install dependencies: `npm install`.
-4. Install the Base44 CLI: `npm install -g base44@latest`.
+---
 
-See the [Base44 CLI docs](https://docs.base44.com/developers/references/cli/get-started/overview) if you want to run Base44 commands directly.
+## ✨ What it does
 
-## Run Locally
+| Feature | Description |
+|---|---|
+| 🧠 **Consult the Council** | Fans a question out to multiple LLMs in parallel, then a synthesis pass integrates their answers into one best answer — noting agreement and resolving conflicts. |
+| 💬 **AI chat companion** | Genre-aware Unity game-dev assistant with conversation history and per-genre playbooks. |
+| ⌨️ **Live Unity bridge** | Executes generated C# in the user's running Unity editor over a secure Cloudflare tunnel. |
+| 🛠️ **Code & plan generation** | Generates C# scripts, shaders, and full game-dev task plans as first-class artifacts. |
+| 🧭 **Forge Sage** | An onboarding guide that walks first-time users through connecting Unity, step by step. |
 
-Run the full local development environment from the project root:
+---
+
+## 🏗️ Base44 Backend Usage
+
+This project leans **heavily** on the Base44 backend — well beyond the 2-capability minimum.
+
+### 1. Authentication & user management
+Email/password + Google OAuth, admin/user roles, and **every backend function is auth-gated** (`base44.auth.me()` → 401 otherwise).
+
+### 2. Database / entities (12 entities, all with Row-Level Security)
+`Conversation`, `Message`, `ConsultSession`, `ModelResponse`, `Project`, `GameDevTask`, `CodeArtifact`, `BridgeSession`, `BridgeCommandLog`, `UserProfile`, `ModelProvider`, plus the built-in `User`. Each record is scoped to its owner via RLS — one user can never read another's data.
+
+### 3. Backend functions (7)
+| Function | Role |
+|---|---|
+| `chat_completion` | Main AI chat with conversation history |
+| `start_consult` | **Parallel multi-model orchestration** — the Council |
+| `synthesize_consult` | Merges council answers into one synthesis |
+| `generate_code` | C# / shader artifact generation |
+| `generate_game_dev_plan` | Structured project task planning |
+| `unity_bridge_relay` | Secure relay that runs C# in the live Unity editor |
+| `sageHelp` | Onboarding assistant |
+
+### 4. AI / LLM orchestration
+Real parallel fan-out to multiple models (`Promise.allSettled`) with live per-model status rows, followed by a synthesis pass — configurable via the `ModelProvider` entity.
+
+### 5. File & media storage
+Image generation and upload flow through Base44's storage integrations.
+
+### 🔎 SDK markers (for verification)
+- Frontend: `@/api/base44Client` initialized via `@base44/sdk` (`createClient`), used as `base44.entities.*`, `base44.auth.*`, `base44.functions.invoke(...)`, `base44.integrations.Core.*`.
+- Backend functions: `createClientFromRequest` from `@base44/sdk`, RLS-scoped entity access, and service-role usage where appropriate.
+
+---
+
+## 🎮 Custom frontend surfaces
+
+Beyond a standard React web app, Lovelace Forge ships a **Unity Editor integration** (`unity-bridge/`) — a C# editor plugin that opens a local HTTP bridge, tunneled to the backend, so the AI can execute code directly in the creator's editor. That non-web surface is the novelty.
+
+---
+
+## 🚀 Run Locally
 
 ```bash
+git clone <repo-url>
+cd lovelace-forge
+npm install
+npm install -g base44@latest
 base44 dev
 ```
 
-`base44 dev` starts the local Base44 development backend and, when this app is configured for it, also starts the frontend dev server for you. Use the frontend URL printed by the command.
-
-For example, when the Base44 project config includes a `serveCommand`, `base44 dev` can launch the frontend too:
-
-```json5
-{
-  "site": {
-    "serveCommand": "npm run dev"
-  }
-}
-```
-
-In a Base44 project this lives in `base44/config.jsonc`.
-
-## Run Only The Frontend
-
-If you only want to work on the frontend against the hosted Base44 backend, run:
+`base44 dev` starts the local Base44 backend and the Vite frontend. For frontend-only work against the hosted backend, create `.env.local`:
 
 ```bash
-npm run dev
-```
-
-Open the local URL printed by Vite.
-
-## Use The Hosted Backend
-
-For frontend-only development, create or update `.env.local` in the project root:
-
-```bash
-VITE_BASE44_APP_ID=your_app_id
+VITE_BASE44_APP_ID=69f8a0352756110b9a8a3e08
 VITE_BASE44_APP_BASE_URL=https://your-app.base44.app
 ```
 
-`VITE_BASE44_APP_ID` identifies the Base44 app.
+### Secrets (backend)
+Set in the Base44 dashboard — not committed:
+- `GROQ_API_KEY` — powers all LLM calls (chat, council, synthesis, Sage)
+- `UNITY_BRIDGE_API_KEY` — authenticates the Unity editor bridge
 
-`VITE_BASE44_APP_BASE_URL` tells the Base44 Vite plugin where to send local `/api` requests. Point it at your deployed Base44 app URL when you want the local frontend to use the hosted backend.
+---
 
-When you use `base44 dev`, the command injects the local Base44 values for you, so `.env.local` is mainly needed for frontend-only workflows.
+## 🔌 Connecting Unity
 
-## Publish Your Changes
+See `unity-bridge/README.md`. In short: drop the bridge `.cs` file into `Assets/Editor/`, start the bridge, run a Cloudflare tunnel to `http://127.0.0.1:9876`, and paste the tunnel URL into **Connect Unity** in the app.
 
-After pushing your changes to git, open the Base44 dashboard and publish the app:
+---
 
-```bash
-base44 dashboard open
-```
+## 🧱 Tech stack
 
-## Docs & Support
+React + Vite · Tailwind CSS · Framer Motion · Base44 BaaS (auth, entities, functions, storage) · Deno backend functions · Groq LLMs · Unity C# editor bridge · Cloudflare Tunnel.
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+---
 
-Base44 CLI command reference: [https://docs.base44.com/developers/references/cli/commands/introduction](https://docs.base44.com/developers/references/cli/commands/introduction)
+## 📚 Docs & Support
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+- Base44 CLI: https://docs.base44.com/developers/references/cli/commands/introduction
+- Support: https://app.base44.com/support
+
+Built for the **Base44 Dev Build-off 2026**. Born from community. Built for humanity.
