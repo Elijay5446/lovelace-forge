@@ -14,6 +14,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AppWorkspace from './pages/AppWorkspace';
 import ConnectUnity from './pages/ConnectUnity';
+import UnitySetup from './pages/UnitySetup';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 const AuthenticatedApp = () => {
@@ -48,6 +49,7 @@ const AuthenticatedApp = () => {
     <Route path="/register" element={<Register />} />
     <Route path="/forgot-password" element={<ForgotPassword />} />
     <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/unity-setup" element={<UnitySetup />} />
     <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
       <Route path="/app" element={<AppWorkspace />} />
       <Route path="/app/unity" element={<ConnectUnity />} />

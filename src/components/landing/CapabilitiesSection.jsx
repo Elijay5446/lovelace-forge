@@ -1,6 +1,16 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Brain, Network, Code2, Cable } from "lucide-react";
+import { Brain, Network, Code2, Cable, Link2, Check, BookOpen } from "lucide-react";
+
+const BRIDGE_FEATURES = [
+  "Execute custom C# code in your Unity editor from the browser",
+  "Inspect and modify any Unity asset programmatically",
+  "Take screenshots of your editor view remotely",
+  "Named tool system: create_game_object, run_script, inspect_asset, list_scene_objects",
+  "Works with any Unity 2021.3+ project",
+  "Secure Cloudflare tunnel — your editor never exposes a public port",
+];
 
 const CAPS = [
   {
@@ -56,6 +66,46 @@ export default function CapabilitiesSection() {
           </motion.div>
         ))}
       </div>
+
+      {/* Unity Live Bridge — the crown jewel */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ duration: 0.6 }}
+        className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-6 md:p-8"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700 shadow-[0_0_18px_rgba(245,158,11,0.35)]">
+            <Link2 className="h-4 w-4 text-white" />
+          </span>
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+            Unity Live Bridge
+          </span>
+        </div>
+        <h3 className="mt-4 font-display text-2xl font-semibold text-stone-100">
+          Live Unity Editor Bridge
+        </h3>
+        <p className="mt-2.5 max-w-2xl text-sm leading-relaxed text-stone-400">
+          Connect your Unity editor directly to Lovelace Forge. Run C# scripts, inspect
+          assets, manage game objects, and build your game with AI — all in real time,
+          right inside your editor. No plugins required.
+        </p>
+        <ul className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {BRIDGE_FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+        <Link
+          to="/unity-setup"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
+        >
+          <BookOpen className="h-4 w-4" /> View Setup Guide
+        </Link>
+      </motion.div>
     </section>
   );
 }

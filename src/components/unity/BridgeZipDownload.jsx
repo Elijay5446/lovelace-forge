@@ -332,6 +332,45 @@ const ASMDEF = `{
 }
 `;
 
+const README_TXT = `LOVELACE FORGE — UNITY BRIDGE
+==============================
+
+WHAT THIS DOES:
+Connects your live Unity editor to Lovelace Forge so you can
+run commands, inspect assets, and build games with AI assistance
+from your browser.
+
+QUICK START:
+1. Copy LovelaceForgeBridge.cs into your Unity project (any Editor folder)
+2. In Unity, click: Tools > Lovelace Forge > Start Bridge
+3. Run start_forge_bridge.ps1 (Windows) or start_forge_bridge.py (Mac/Linux)
+4. Copy the tunnel URL from the terminal
+5. Paste it into the Connect page at Lovelace Forge
+
+REQUIREMENTS:
+- Unity 2021.3 LTS or newer
+- Python 3.8+ (for the tunnel script)
+- A Lovelace Forge account (free)
+
+HOW IT WORKS:
+The bridge runs an HTTP listener on localhost:9876 inside Unity.
+A Cloudflare tunnel exposes it temporarily so Lovelace Forge can
+reach your editor from the cloud. Each command is an independent
+HTTP request — no persistent connection needed.
+
+TROUBLESHOOTING:
+- Tunnel dropped? Restart the bridge script and paste the new URL.
+- Port 9876 busy? Close any other process using that port.
+- Compile error? Make sure the .cs file is in an Editor folder.
+
+SECURITY:
+- The tunnel URL is unique to you and expires when the script stops.
+- No data leaves your machine unless you explicitly send a command.
+- The bridge only accepts requests from Lovelace Forge's relay.
+
+For full documentation: visit the Setup Guide in Lovelace Forge.
+`;
+
 const README = `# Lovelace Forge Bridge (Unity package)
 
 The local side of the Lovelace Forge Unity Bridge: a tiny HTTP listener that runs
@@ -393,6 +432,7 @@ export default function BridgeZipDownload({ className = "" }) {
       folder.file("Start Forge Tunnel.bat", START_BAT);
       folder.file("start_forge_tunnel.sh", START_SH);
       folder.file("README.md", README);
+      folder.file("README.txt", README_TXT);
 
       const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);

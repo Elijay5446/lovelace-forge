@@ -25,14 +25,26 @@ async function fetchWithTimeout(url, opts, timeoutMs) {
   }
 }
 
-// Probe the tunnel with an 8s hard cap — tries /ping then /health.
+// Probe the tunnel with an 8s hard cap — tries /health (which carries the Unity
+// version + project name) then /ping. Returns any details it can parse so the
+// caller can persist them for the status panel.
 async function pingTunnel(tunnelUrl) {
   const base = normalizeUrl(tunnelUrl);
   if (!base) return { ok: false, error: "no url" };
   for (const path of ["/health", "/ping"]) {
     const r = await fetchWithTimeout(base + path, { method: "GET", headers: authHeaders() }, 8000);
     if (r.timeout) return { ok: false, timeout: true };
-    if (r.ok && r.status >= 200 && r.status < 300) return { ok: true, path };
+    if (r.ok && r.status >= 200 && r.status < 300) {
+      let details = {};
+      try {
+        const parsed = JSON.parse(r.body || "{}");
+        details = {
+          unity_version: parsed.unity || parsed.unity_version || parsed.unityVersion || "",
+          project_name: parsed.project || parsed.project_name || parsed.projectName || "",
+        };
+      } catch { /* /ping may not return JSON */ }
+      return { ok: true, path, details };
+    }
   }
   return { ok: false };
 }
@@ -147,6 +159,8 @@ Deno.serve(async (req) => {
       bridge = await base44.entities.BridgeSession.update(bridge.id, {
         status,
         last_seen_at: nowIso(),
+        ...(ping.details?.unity_version ? { unity_version: ping.details.unity_version } : {}),
+        ...(ping.details?.project_name ? { project_name: ping.details.project_name } : {}),
       });
       return Response.json({ success: true, bridge });
     }
@@ -161,6 +175,8 @@ Deno.serve(async (req) => {
       const updated = await base44.entities.BridgeSession.update(bridge.id, {
         status,
         last_seen_at: nowIso(),
+        ...(ping.details?.unity_version ? { unity_version: ping.details.unity_version } : {}),
+        ...(ping.details?.project_name ? { project_name: ping.details.project_name } : {}),
       });
       return Response.json({ success: true, bridge: updated });
     }

@@ -23,6 +23,11 @@
       "type": "string",
       "title": "Unity Version"
     },
+    "project_name": {
+      "type": "string",
+      "title": "Project Name",
+      "description": "Name of the Unity project reported by the bridge /health endpoint"
+    },
     "last_seen_at": {
       "type": "string",
       "title": "Last Seen At",

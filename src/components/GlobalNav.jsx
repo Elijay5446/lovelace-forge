@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/AuthContext";
 const NAV = [
   { to: "/app", label: "Chat", emoji: "💬", match: (p) => p === "/app" },
   { to: "/app/unity", label: "Connect Unity", emoji: "🌉", match: (p) => p.startsWith("/app/unity") },
+  { to: "/unity-setup", label: "Unity Setup Guide", emoji: "📖", match: (p) => p.startsWith("/unity-setup") },
 ];
 
 export default function GlobalNav() {

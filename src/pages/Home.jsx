@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Code2, Network, Cable, ArrowRight } from "lucide-react";
+import { Code2, Network, Cable, ArrowRight, BookOpen } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { useAuth } from "@/lib/AuthContext";
 import CouncilTeaser from "@/components/landing/CouncilTeaser";
@@ -188,6 +188,32 @@ export default function Home() {
       <TextToGame />
 
       <CapabilitiesSection />
+
+      {/* Unity bridge CTA */}
+      <section className="relative mx-auto w-full max-w-3xl px-6 pb-8">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.6 }}
+          className="rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-6 text-center md:p-8"
+        >
+          <Cable className="mx-auto h-6 w-6 text-amber-400" strokeWidth={1.5} />
+          <h3 className="mt-4 font-display text-xl font-semibold text-stone-100 md:text-2xl">
+            Connect your Unity editor in 5 minutes
+          </h3>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-stone-400">
+            Download the bridge, paste your tunnel URL, and start building with AI.
+            No plugins, no packages — just a single script.
+          </p>
+          <Link
+            to="/unity-setup"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:from-amber-500 hover:to-orange-500"
+          >
+            <BookOpen className="h-4 w-4" /> View Setup Guide
+          </Link>
+        </motion.div>
+      </section>
 
       <CouncilTeaser />
 

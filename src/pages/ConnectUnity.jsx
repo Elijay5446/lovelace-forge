@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -22,6 +22,11 @@ import EasySetup from "@/components/unity/EasySetup";
 import BridgeTroubleshooting from "@/components/unity/BridgeTroubleshooting";
 import LiveStatus from "@/components/unity/LiveStatus";
 import CommandConsole from "@/components/unity/CommandConsole";
+import BridgeZipDownload from "@/components/unity/BridgeZipDownload";
+import BridgeStatusPanel from "@/components/unity/BridgeStatusPanel";
+import FirstRunModal from "@/components/unity/FirstRunModal";
+import { Link } from "react-router-dom";
+import { BookOpen } from "lucide-react";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -44,6 +49,9 @@ export default function ConnectUnity() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState({ kind: "", text: "" });
   const [guideOpen, setGuideOpen] = useState(false);
+  const [firstRunOpen, setFirstRunOpen] = useState(false);
+  const [statusRefresh, setStatusRefresh] = useState(0);
+  const downloadSectionRef = useRef(null);
 
   // Load any already-registered tunnel URL once so the input reflects reality.
   const loadExisting = useCallback(async () => {
@@ -60,6 +68,22 @@ export default function ConnectUnity() {
     loadExisting();
   }, [loadExisting]);
 
+  // First-run onboarding: show once, then remember on the user's profile.
+  useEffect(() => {
+    (async () => {
+      try {
+        const profiles = await base44.entities.UserProfile.filter({}, "-created_date", 1);
+        const profile = profiles?.[0];
+        if (profile?.onboarded) return;
+        setFirstRunOpen(true);
+        if (profile) await base44.entities.UserProfile.update(profile.id, { onboarded: true });
+        else await base44.entities.UserProfile.create({ onboarded: true });
+      } catch {
+        /* non-blocking */
+      }
+    })();
+  }, []);
+
   const handleConnect = async () => {
     if (!tunnelUrl.trim() || busy) return;
     setBusy(true);
@@ -73,6 +97,7 @@ export default function ConnectUnity() {
       if (!data?.success) throw new Error(data?.error || "Connection failed.");
       const s = data.bridge?.status;
       setStatus(s);
+      setStatusRefresh((n) => n + 1);
       if (s === "connected") {
         setGuideOpen(true);
         setMessage({
@@ -124,7 +149,15 @@ export default function ConnectUnity() {
               Connect Unity
             </span>
           </div>
-          <LiveStatus onStatusChange={setStatus} />
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/unity-setup"
+              className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-stone-300 transition hover:border-amber-500/40 hover:text-amber-100 sm:inline-flex"
+            >
+              <BookOpen className="h-3.5 w-3.5" /> Setup Guide
+            </Link>
+            <LiveStatus onStatusChange={setStatus} />
+          </div>
         </div>
       </header>
 
@@ -168,6 +201,35 @@ export default function ConnectUnity() {
             </button>
           )}
         </motion.section>
+
+        {/* Prominent download + guide */}
+        <section ref={downloadSectionRef} className="mt-8 rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-stone-100">
+                Get the bridge package
+              </h2>
+              <p className="mt-1 text-sm text-stone-400">
+                One ZIP with the Unity script, launchers, and a README. New to this?
+                Follow the step-by-step guide.
+              </p>
+            </div>
+            <Link
+              to="/unity-setup"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-medium text-stone-200 transition hover:border-amber-500/40 hover:text-amber-100"
+            >
+              <BookOpen className="h-4 w-4" /> How to configure Unity
+            </Link>
+          </div>
+          <div className="mt-4">
+            <BridgeZipDownload />
+          </div>
+          <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.02] p-4 text-sm leading-relaxed text-stone-400">
+            <p><span className="font-semibold text-stone-200">Step 1:</span> Download and install the bridge package in your Unity editor (see Setup Guide)</p>
+            <p className="mt-1"><span className="font-semibold text-stone-200">Step 2:</span> Start the bridge script on your machine</p>
+            <p className="mt-1"><span className="font-semibold text-stone-200">Step 3:</span> Paste your tunnel URL below to connect</p>
+          </div>
+        </section>
 
         <div className="mt-12 space-y-10">
           {/* STEP 1 */}
@@ -271,6 +333,10 @@ export default function ConnectUnity() {
                 {message.text}
               </div>
             )}
+
+            <div className="mt-4">
+              <BridgeStatusPanel refreshKey={statusRefresh} />
+            </div>
           </Step>
 
           {/* STEP 4 — the console */}
@@ -302,6 +368,13 @@ export default function ConnectUnity() {
         </section>
       </main>
 
+      <FirstRunModal
+        open={firstRunOpen}
+        onClose={() => setFirstRunOpen(false)}
+        onDownload={() =>
+          downloadSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+      />
       <ForgeGuideOverlay open={guideOpen} onClose={() => setGuideOpen(false)} />
       <SageHelp />
     </div>
