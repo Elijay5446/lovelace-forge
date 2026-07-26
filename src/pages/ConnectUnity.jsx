@@ -24,6 +24,7 @@ import SageHelp from "@/components/unity/SageHelp";
 import ForgeGuideOverlay from "@/components/unity/ForgeGuideOverlay";
 import EasySetup from "@/components/unity/EasySetup";
 import BridgeTroubleshooting from "@/components/unity/BridgeTroubleshooting";
+import CodeRunnerDownload from "@/components/unity/CodeRunnerDownload";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -341,6 +342,7 @@ export default function ConnectUnity() {
             >
               <Download className="h-4 w-4" /> ⬇ Download Forge Bridge (.zip)
             </a>
+            <CodeRunnerDownload />
           </Step>
 
           {/* STEP 2 */}
