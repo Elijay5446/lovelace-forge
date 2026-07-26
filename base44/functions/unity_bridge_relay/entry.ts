@@ -37,7 +37,26 @@ async function pingTunnel(tunnelUrl) {
   return { ok: false };
 }
 
-// POST C# to the bridge /execute with a 45s hard cap — never hangs longer.
+// Hard cap for /execute forwarding. Kept under Base44's ~45s function ceiling
+// so the relay always returns cleanly instead of being killed mid-flight.
+const EXECUTE_TIMEOUT_MS = 43000;
+
+// GET /list_tools from the bridge with a short cap — returns the tool schema
+// array the Unity side advertises. Returns [] if the bridge doesn't expose it.
+async function listToolsFromTunnel(tunnelUrl) {
+  const base = normalizeUrl(tunnelUrl);
+  const r = await fetchWithTimeout(base + "/list_tools", { method: "GET", headers: authHeaders() }, 8000);
+  if (!r.ok) return { success: false, error: r.timeout ? "Bridge timed out fetching tools." : "Bridge did not return tools." };
+  try {
+    const parsed = JSON.parse(r.body);
+    const tools = Array.isArray(parsed) ? parsed : parsed?.tools;
+    return { success: true, tools: Array.isArray(tools) ? tools : [] };
+  } catch {
+    return { success: false, error: "Bridge returned invalid tool JSON." };
+  }
+}
+
+// POST C# to the bridge /execute with a 43s hard cap — never hangs longer.
 async function executeOnTunnel(tunnelUrl, code) {
   const base = normalizeUrl(tunnelUrl);
   const opts = {
@@ -46,15 +65,15 @@ async function executeOnTunnel(tunnelUrl, code) {
     body: JSON.stringify({ code }),
   };
   // The user's bridge exposes POST /exec; the Forge Bridge package uses /execute.
-  let r = await fetchWithTimeout(base + "/exec", opts, 45000);
+  let r = await fetchWithTimeout(base + "/exec", opts, EXECUTE_TIMEOUT_MS);
   if (!r.timeout && r.status === 404) {
-    r = await fetchWithTimeout(base + "/execute", opts, 45000);
+    r = await fetchWithTimeout(base + "/execute", opts, EXECUTE_TIMEOUT_MS);
   }
   if (r.timeout) {
     return {
       success: false,
       error:
-        "Bridge did not respond within 45s — the operation may still be running in Unity. Try again or check that the bridge is running.",
+        "Bridge did not respond within 43s — the operation may still be running in Unity. Try again or check that the bridge is running.",
     };
   }
   if (!r.ok) {
@@ -146,10 +165,26 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, bridge: updated });
     }
 
+    if (action === "list_tools") {
+      const bridge = await getBridge();
+      if (!bridge || !bridge.tunnel_url) {
+        return Response.json({ success: false, error: "No bridge configured. Connect Unity first.", tools: [] });
+      }
+      const res = await listToolsFromTunnel(bridge.tunnel_url);
+      return Response.json(res.success ? { success: true, tools: res.tools } : { success: false, error: res.error, tools: [] });
+    }
+
     if (action === "execute") {
-      const code = body.code;
+      // Two shapes: raw C# ({ code }) or a named tool call ({ tool, args }).
+      // For a named tool we forward the name + args to the bridge, which maps it
+      // to the C# that implements that tool. We send both "code" (a JSON call
+      // envelope) so bridges that key off tool name can dispatch it.
+      let code = body.code;
+      if ((typeof code !== "string" || !code.trim()) && body.tool) {
+        code = JSON.stringify({ tool: String(body.tool), args: body.args || {} });
+      }
       if (typeof code !== "string" || !code.trim()) {
-        return Response.json({ success: false, error: "code is required" });
+        return Response.json({ success: false, error: "code or tool is required" });
       }
       const bridge = await getBridge();
       if (!bridge || !bridge.tunnel_url) {
