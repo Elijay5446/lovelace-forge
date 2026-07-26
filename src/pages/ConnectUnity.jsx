@@ -288,13 +288,15 @@ export default function ConnectUnity() {
               <li className="flex gap-2.5">
                 <Num n={2} />
                 <span>
-                  Copy{" "}
+                  Drag the whole{" "}
                   <code className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[12px] text-amber-300">
-                    LovelaceForgeBridge.cs
+                    LovelaceForgeBridge
                   </code>{" "}
-                  into your Unity project under{" "}
-                  <span className="text-stone-200">Assets/Editor/</span> (create the Editor
-                  folder if it doesn't exist). Unity compiles it automatically.
+                  folder into your Unity project's{" "}
+                  <span className="text-stone-200">Assets/</span> — everything's in one folder,
+                  and the included .asmdef marks it editor-only, so there's no{" "}
+                  <span className="text-stone-200">Editor/</span> folder to create. Unity
+                  compiles it automatically.
                 </span>
               </li>
               <li className="flex gap-2.5">
@@ -326,13 +328,13 @@ export default function ConnectUnity() {
               </li>
             </ol>
             <p className="mt-3 text-xs leading-relaxed text-stone-500">
-              The zip also includes{" "}
+              The same folder also holds{" "}
               <code className="rounded bg-white/5 px-1 py-0.5 font-mono text-[11px] text-stone-300">
-                start_forge_bridge.ps1
+                Start Forge Tunnel.bat
               </code>{" "}
               for Windows and{" "}
               <code className="rounded bg-white/5 px-1 py-0.5 font-mono text-[11px] text-stone-300">
-                start_forge_bridge.py
+                start_forge_tunnel.sh
               </code>{" "}
               for macOS/Linux — the tunnel launchers used in Step 2 — plus a README.
             </p>

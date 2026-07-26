@@ -318,6 +318,20 @@ echo "Keep this window open while you work."
 cloudflared tunnel --url http://127.0.0.1:9876 --http-host-header 127.0.0.1:9876
 `;
 
+// Marks the whole folder as an editor-only assembly, so the .cs files can live
+// directly in LovelaceForgeBridge/ (no required "Editor" folder) and still use
+// the UnityEditor API. This is what lets us keep everything in one directory.
+const ASMDEF = `{
+  "name": "LovelaceForge.Bridge",
+  "rootNamespace": "LovelaceForge.Bridge",
+  "references": [],
+  "includePlatforms": [ "Editor" ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": true
+}
+`;
+
 const README = `# Lovelace Forge Bridge (Unity package)
 
 The local side of the Lovelace Forge Unity Bridge: a tiny HTTP listener that runs
@@ -326,8 +340,9 @@ Cloudflare tunnel and runs C# snippets on the main thread, streaming results
 back into your chat.
 
 ## Install
-1. Drop the LovelaceForgeBridge folder into your project's Assets/ directory.
-   (It's editor-only — everything lives under an Editor/ folder.)
+1. Drop the whole LovelaceForgeBridge folder into your project's Assets/ directory.
+   That's it — everything lives in this one folder. The included .asmdef marks it
+   editor-only, so you do NOT need to rename anything to "Editor".
 2. Unity compiles it automatically.
 3. A new menu appears: Tools -> Lovelace Forge -> Start Bridge.
 
@@ -354,8 +369,9 @@ fixed version.
 - "Failed to start bridge" on Windows — reserve the URL once (run as admin):
   netsh http add urlacl url=http://localhost:9876/ user=Everyone
 - Port 9876 in use — change BridgeServer.Port and the tunnel URL to match.
-- No Tools menu — make sure the files are under an Editor/ folder and you're on
-  Unity 6+.
+- No Tools menu — keep the LovelaceForge.Bridge.Editor.asmdef file in the folder
+  (it makes the scripts editor-only) and make sure you're on Unity 6+. Check the
+  Console for compile errors.
 `;
 
 export default function BridgeZipDownload({ className = "" }) {
@@ -366,13 +382,17 @@ export default function BridgeZipDownload({ className = "" }) {
     setBuilding(true);
     try {
       const zip = new JSZip();
-      const editor = zip.folder("LovelaceForgeBridge").folder("Editor");
-      editor.file("CodeRunner.cs", CODE_RUNNER_CS);
-      editor.file("BridgeServer.cs", BRIDGE_SERVER_CS);
-      editor.file("LovelaceBridgeWindow.cs", BRIDGE_WINDOW_CS);
-      zip.file("Start Forge Tunnel.bat", START_BAT);
-      zip.file("start_forge_tunnel.sh", START_SH);
-      zip.file("README.md", README);
+      // Everything in one folder — drag LovelaceForgeBridge/ into Assets/ and go.
+      // The .cs files compile (they're in an "Editor" named folder path); the
+      // launchers and README are plain text Unity ignores.
+      const folder = zip.folder("LovelaceForgeBridge");
+      folder.file("CodeRunner.cs", CODE_RUNNER_CS);
+      folder.file("BridgeServer.cs", BRIDGE_SERVER_CS);
+      folder.file("LovelaceBridgeWindow.cs", BRIDGE_WINDOW_CS);
+      folder.file("LovelaceForge.Bridge.Editor.asmdef", ASMDEF);
+      folder.file("Start Forge Tunnel.bat", START_BAT);
+      folder.file("start_forge_tunnel.sh", START_SH);
+      folder.file("README.md", README);
 
       const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);
