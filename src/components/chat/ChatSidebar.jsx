@@ -1,13 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Plus, Loader2, LogOut, Cable, MessageSquare } from "lucide-react";
+import { Plus, LogOut, Cable, MessageSquare } from "lucide-react";
 import { ConversationListSkeleton } from "@/components/Skeletons";
+import ConversationSearch from "@/components/chat/ConversationSearch";
+import ConversationRow from "@/components/chat/ConversationRow";
 
 export default function ChatSidebar({
   conversations,
   activeId,
   onSelect,
   onNew,
+  onRename,
+  onDelete,
   loading,
   user,
   onLogout,
@@ -15,6 +19,15 @@ export default function ChatSidebar({
   className = "",
 }) {
   const { pathname } = useLocation();
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? conversations.filter(
+        (c) =>
+          (c.title || "").toLowerCase().includes(q) ||
+          (c.last_message_preview || "").toLowerCase().includes(q)
+      )
+    : conversations;
   return (
     <aside
       className={`flex w-72 shrink-0 flex-col border-r border-white/5 bg-[#0a0a0b] ${className}`}
@@ -28,6 +41,10 @@ export default function ChatSidebar({
         </button>
       </div>
 
+      {!loading && conversations.length > 0 && (
+        <ConversationSearch value={query} onChange={setQuery} />
+      )}
+
       <div className="flex-1 overflow-y-auto px-2 pb-2">
         {loading ? (
           <ConversationListSkeleton />
@@ -35,22 +52,20 @@ export default function ChatSidebar({
           <p className="px-3 py-6 text-center text-xs text-stone-600">
             No conversations yet.
           </p>
+        ) : filtered.length === 0 ? (
+          <p className="px-3 py-6 text-center text-xs text-stone-600">
+            No chats match “{query}”.
+          </p>
         ) : (
-          conversations.map((c) => (
-            <button
+          filtered.map((c) => (
+            <ConversationRow
               key={c.id}
-              onClick={() => onSelect(c.id)}
-              className={`mb-1 w-full rounded-lg px-3 py-2.5 text-left transition ${
-                activeId === c.id ? "bg-white/10" : "hover:bg-white/5"
-              }`}
-            >
-              <p className="truncate text-sm font-medium text-stone-200">
-                {c.title || "New conversation"}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-stone-500">
-                {c.last_message_preview || "—"}
-              </p>
-            </button>
+              convo={c}
+              active={activeId === c.id}
+              onSelect={onSelect}
+              onRename={onRename}
+              onDelete={onDelete}
+            />
           ))
         )}
       </div>

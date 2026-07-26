@@ -254,6 +254,25 @@ export default function AppWorkspace() {
     }
   };
 
+  const renameConversation = async (id, title) => {
+    await base44.entities.Conversation.update(id, { title });
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title } : c))
+    );
+  };
+
+  const deleteConversation = async (id) => {
+    const msgs = await base44.entities.Message.filter({ conversation_id: id }, "-created_date", 500);
+    await Promise.all((msgs || []).map((m) => base44.entities.Message.delete(m.id)));
+    await base44.entities.Conversation.delete(id);
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (activeId === id) {
+      setActiveId(null);
+      setMessages([]);
+      closeConsult();
+    }
+  };
+
   const activeConvo = conversations.find((c) => c.id === activeId);
   const showEmpty = !activeId && messages.length === 0;
 
@@ -277,6 +296,8 @@ export default function AppWorkspace() {
             newConversation();
             setMobileNav(false);
           }}
+          onRename={renameConversation}
+          onDelete={deleteConversation}
           loading={loadingConvos}
           user={user}
           onLogout={logout}
