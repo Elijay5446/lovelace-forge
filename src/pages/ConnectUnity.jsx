@@ -25,6 +25,7 @@ import ForgeGuideOverlay from "@/components/unity/ForgeGuideOverlay";
 import EasySetup from "@/components/unity/EasySetup";
 import BridgeTroubleshooting from "@/components/unity/BridgeTroubleshooting";
 import CodeRunnerDownload from "@/components/unity/CodeRunnerDownload";
+import BridgeZipDownload from "@/components/unity/BridgeZipDownload";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
 
@@ -335,13 +336,9 @@ export default function ConnectUnity() {
               </code>{" "}
               for macOS/Linux — the tunnel launchers used in Step 2 — plus a README.
             </p>
-            <a
-              href="https://base44.app/api/apps/69f8a0352756110b9a8a3e08/files/mp/public/69f8a0352756110b9a8a3e08/e71ee3136_LovelaceForgeBridge.zip"
-              download
-              className="mt-5 inline-flex items-center gap-2 rounded-lg border-0 bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(245,158,11,0.28)] transition hover:from-amber-400 hover:to-orange-500 hover:shadow-[0_0_34px_rgba(245,158,11,0.45)]"
-            >
-              <Download className="h-4 w-4" /> ⬇ Download Forge Bridge (.zip)
-            </a>
+            <div className="mt-5">
+              <BridgeZipDownload />
+            </div>
             <CodeRunnerDownload />
           </Step>
 

@@ -4,7 +4,7 @@ import { FileCode2 } from "lucide-react";
 // The current, Unity-6-compatible CodeRunner.cs (Roslyn-based, no System.CodeDom).
 // Served in-browser as a Blob so the download is always the fixed version — no
 // external hosting to keep in sync.
-const CODE_RUNNER_CS = `using System;
+export const CODE_RUNNER_CS = `using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
