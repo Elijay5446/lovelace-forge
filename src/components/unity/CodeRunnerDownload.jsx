@@ -1,37 +1,42 @@
 import React from "react";
 import { FileCode2 } from "lucide-react";
 
-// The current, Unity-6-compatible CodeRunner.cs (Roslyn-based, no System.CodeDom).
-// Served in-browser as a Blob so the download is always the fixed version — no
-// external hosting to keep in sync.
+// Dependency-free, Unity-6-compatible CodeRunner.cs. It does NOT reference
+// Microsoft.CodeAnalysis (Roslyn) — that package isn't available to plain Unity
+// projects, and referencing it makes the whole editor assembly fail to compile,
+// which is exactly why the Tools menu never appeared. Instead this drives the
+// Roslyn compiler BINARY (csc) that ships inside every Unity install as an
+// external process, so there are zero project-level dependencies.
+// Served in-browser as a Blob so the download is always the fixed version.
 export const CODE_RUNNER_CS = `using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Emit;
 using UnityEngine;
 using UnityEditor;
+using Debug = UnityEngine.Debug;
 
 namespace LovelaceForge.Bridge
 {
     /// <summary>
-    /// Compiles and runs a C# snippet in-process (no domain reload) on the main thread.
-    /// The snippet is the body of \`static string Execute()\` — write statements, and
-    /// \`return "your result";\` to send data back to Lovelace. It can use the full
-    /// UnityEngine / UnityEditor API.
+    /// Compiles and runs a C# snippet on the main thread WITHOUT any Roslyn NuGet
+    /// reference. The snippet is the body of \`static string Execute()\` — write
+    /// statements and \`return "your result";\` to send data back to Lovelace. It
+    /// can use the full UnityEngine / UnityEditor API.
     ///
-    /// Uses the Roslyn compiler (Microsoft.CodeAnalysis) that ships with Unity 6 /
-    /// the .NET Standard 2.1 profile — the legacy System.CodeDom compiler is not
-    /// available on modern Unity, so we avoid it entirely.
+    /// How it compiles: Unity ships the Roslyn compiler as a standalone assembly
+    /// (Data/Tools/Roslyn/csc.dll or csc-net472.exe). We shell out to it with the
+    /// current editor's loaded assemblies as references, produce a temp DLL, load
+    /// it, and invoke Execute(). No package needs to be installed, so this file
+    /// always compiles and the Tools ▸ Lovelace Forge menu always appears.
     /// </summary>
     public static class CodeRunner
     {
-        // Cache references — resolving loaded assemblies is the slow part.
-        private static List<MetadataReference> _references;
+        private static string _cscPath;
+        private static List<string> _refPaths;
 
         public static string Run(string code)
         {
@@ -55,61 +60,70 @@ namespace LovelaceForge.Runtime
     }}
 }}";
 
-            SyntaxTree tree;
+            string tempDir = Path.Combine(Path.GetTempPath(), "LovelaceForge_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            string srcFile = Path.Combine(tempDir, "Snippet.cs");
+            string dllFile = Path.Combine(tempDir, "Snippet.dll");
+            string rspFile = Path.Combine(tempDir, "compile.rsp");
+
             try
             {
-                tree = CSharpSyntaxTree.ParseText(source);
-            }
-            catch (Exception e)
-            {
-                return "COMPILE ERROR: could not parse snippet — " + e.Message;
-            }
+                File.WriteAllText(srcFile, source);
 
-            var options = new CSharpCompilationOptions(
-                OutputKind.DynamicallyLinkedLibrary,
-                optimizationLevel: OptimizationLevel.Release,
-                allowUnsafe: false);
+                string csc = GetCscPath();
+                if (csc == null)
+                    return "COMPILE ERROR: could not locate Unity's Roslyn compiler (csc). " +
+                           "Expected under <UnityEditor>/Data/Tools/Roslyn.";
 
-            var compilation = CSharpCompilation.Create(
-                "LovelaceForge_Snippet_" + Guid.NewGuid().ToString("N"),
-                new[] { tree },
-                GetReferences(),
-                options);
+                // A response file avoids Windows command-line length limits — there
+                // can be hundreds of reference assemblies.
+                var rsp = new StringBuilder();
+                rsp.AppendLine("-target:library");
+                rsp.AppendLine("-nostdlib+");
+                rsp.AppendLine("-nologo");
+                rsp.AppendLine("-optimize+");
+                rsp.AppendLine("-out:\\"" + dllFile + "\\"");
+                foreach (var r in GetReferencePaths())
+                    rsp.AppendLine("-r:\\"" + r + "\\"");
+                rsp.AppendLine("\\"" + srcFile + "\\"");
+                File.WriteAllText(rspFile, rsp.ToString());
 
-            using (var ms = new MemoryStream())
-            {
-                EmitResult result;
-                try
+                var psi = new ProcessStartInfo
                 {
-                    result = compilation.Emit(ms);
-                }
-                catch (Exception e)
-                {
-                    return "COMPILE ERROR: emit failed — " + e.Message;
-                }
+                    FileName = csc,
+                    Arguments = "\\"@" + rspFile + "\\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
 
-                if (!result.Success)
+                // csc.dll must be launched through the bundled dotnet/mono host.
+                if (csc.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
                 {
-                    var sb = new StringBuilder();
-                    foreach (var d in result.Diagnostics)
-                    {
-                        if (d.Severity != DiagnosticSeverity.Error) continue;
-                        var line = d.Location.GetLineSpan().StartLinePosition.Line + 1;
-                        sb.AppendLine(d.GetMessage() + " (line " + line + ")");
-                    }
-                    return "COMPILE ERROR:\\n" + sb;
+                    string host = GetDotnetHost();
+                    if (host == null)
+                        return "COMPILE ERROR: found csc.dll but no dotnet host to run it.";
+                    psi.FileName = host;
+                    psi.Arguments = "\\"" + csc + "\\" \\"@" + rspFile + "\\"";
                 }
 
-                ms.Seek(0, SeekOrigin.Begin);
-                Assembly assembly;
-                try
+                string stdout, stderr;
+                using (var proc = Process.Start(psi))
                 {
-                    assembly = Assembly.Load(ms.ToArray());
+                    stdout = proc.StandardOutput.ReadToEnd();
+                    stderr = proc.StandardError.ReadToEnd();
+                    proc.WaitForExit(35000);
                 }
-                catch (Exception e)
+
+                if (!File.Exists(dllFile))
                 {
-                    return "COMPILE ERROR: could not load compiled assembly — " + e.Message;
+                    var errText = (stdout + "\\n" + stderr).Trim();
+                    return "COMPILE ERROR:\\n" + (string.IsNullOrEmpty(errText) ? "compiler produced no output DLL." : errText);
                 }
+
+                byte[] bytes = File.ReadAllBytes(dllFile);
+                Assembly assembly = Assembly.Load(bytes);
 
                 var type = assembly.GetType("LovelaceForge.Runtime.RunCommand");
                 var method = type?.GetMethod("Execute", BindingFlags.Public | BindingFlags.Static);
@@ -125,18 +139,76 @@ namespace LovelaceForge.Runtime
                     return "RUNTIME ERROR: " + (e.InnerException ?? e);
                 }
             }
+            catch (Exception e)
+            {
+                return "COMPILE ERROR: " + e.Message;
+            }
+            finally
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+
+        /// <summary>Locate the Roslyn csc that ships inside the Unity editor install.</summary>
+        private static string GetCscPath()
+        {
+            if (_cscPath != null) return _cscPath.Length == 0 ? null : _cscPath;
+
+            // EditorApplication.applicationContentsPath -> .../Unity/Editor/Data
+            string data = EditorApplication.applicationContentsPath;
+            var candidates = new[]
+            {
+                Path.Combine(data, "Tools", "Roslyn", "csc.dll"),
+                Path.Combine(data, "Tools", "Roslyn", "csc.exe"),
+                Path.Combine(data, "DotNetSdkRoslyn", "csc.dll"),
+                Path.Combine(data, "Tools", "RoslynNet6", "csc.dll"),
+            };
+            foreach (var c in candidates)
+                if (File.Exists(c)) { _cscPath = c; return c; }
+
+            // Fallback: search for any csc under the Tools folder.
+            try
+            {
+                string tools = Path.Combine(data, "Tools");
+                if (Directory.Exists(tools))
+                {
+                    var hit = Directory.GetFiles(tools, "csc.*", SearchOption.AllDirectories)
+                        .FirstOrDefault(f => f.EndsWith("csc.dll", StringComparison.OrdinalIgnoreCase)
+                                          || f.EndsWith("csc.exe", StringComparison.OrdinalIgnoreCase));
+                    if (hit != null) { _cscPath = hit; return hit; }
+                }
+            }
+            catch { }
+
+            _cscPath = "";
+            return null;
+        }
+
+        /// <summary>Locate a dotnet/mono host capable of running csc.dll.</summary>
+        private static string GetDotnetHost()
+        {
+            string data = EditorApplication.applicationContentsPath;
+            bool win = Application.platform == RuntimePlatform.WindowsEditor;
+            var candidates = new[]
+            {
+                Path.Combine(data, "NetCoreRuntime", win ? "dotnet.exe" : "dotnet"),
+                Path.Combine(data, "Tools", "netcorerun", win ? "netcorerun.exe" : "netcorerun"),
+                Path.Combine(data, "MonoBleedingEdge", "bin", win ? "mono.exe" : "mono"),
+            };
+            foreach (var c in candidates)
+                if (File.Exists(c)) return c;
+            return win ? "dotnet.exe" : "dotnet";
         }
 
         /// <summary>
-        /// Build metadata references from every assembly currently loaded in the
-        /// editor AppDomain that has a real file on disk. This makes the full
-        /// UnityEngine / UnityEditor / System API surface available to the snippet.
+        /// Reference paths = every assembly currently loaded in the editor that has
+        /// a real file on disk, so the snippet sees the full Unity/System API.
         /// </summary>
-        private static List<MetadataReference> GetReferences()
+        private static List<string> GetReferencePaths()
         {
-            if (_references != null) return _references;
+            if (_refPaths != null) return _refPaths;
 
-            var refs = new List<MetadataReference>();
+            var paths = new List<string>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
@@ -146,13 +218,11 @@ namespace LovelaceForge.Runtime
                 try { location = asm.Location; }
                 catch { continue; }
                 if (string.IsNullOrEmpty(location) || !File.Exists(location)) continue;
-                if (!seen.Add(location)) continue;
-                try { refs.Add(MetadataReference.CreateFromFile(location)); }
-                catch { /* skip anything Roslyn can't read */ }
+                if (seen.Add(location)) paths.Add(location);
             }
 
-            _references = refs;
-            return refs;
+            _refPaths = paths;
+            return paths;
         }
     }
 }
@@ -174,14 +244,16 @@ export default function CodeRunnerDownload() {
   return (
     <div className="mt-4 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.05] p-4">
       <p className="text-sm font-semibold text-stone-100">
-        Unity 6 didn't compile / no Tools menu?
+        Console shows CodeAnalysis / MetadataReference errors?
       </p>
       <p className="mt-1.5 text-xs leading-relaxed text-stone-400">
-        The zip's <span className="font-mono text-[11px] text-amber-300">CodeRunner.cs</span> uses
-        an old compiler that Unity 6 removed. Download the fixed file below and drop it into{" "}
-        <span className="text-stone-200">Assets/Editor/</span>, replacing the old one. Unity
-        recompiles and the <span className="text-stone-200">Tools ▸ Lovelace Forge</span> menu
-        appears.
+        An older <span className="font-mono text-[11px] text-amber-300">CodeRunner.cs</span> referenced
+        the Roslyn package (<span className="font-mono text-[11px] text-amber-300">Microsoft.CodeAnalysis</span>),
+        which plain Unity projects can't resolve — so the whole editor assembly failed and the Tools
+        menu never appeared. Download the fixed, dependency-free file below and drop it into your{" "}
+        <span className="text-stone-200">LovelaceForgeBridge</span> folder, replacing the old one.
+        Unity recompiles cleanly and the <span className="text-stone-200">Tools ▸ Lovelace Forge</span>{" "}
+        menu appears.
       </p>
       <button
         onClick={handleDownload}
