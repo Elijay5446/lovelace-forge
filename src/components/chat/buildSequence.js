@@ -1,4 +1,5 @@
 import { LOGO_CUBE_CS } from "@/components/chat/logoCubeScript";
+import { LOGO_TEXT_CS } from "@/components/chat/logoTextScript";
 
 // The curated build sequence that renders and animates a Base44 logo cube in the
 // user's live Unity scene, using only what the bridge can actually do
@@ -88,19 +89,24 @@ export const BUILD_STEPS = [
   },
   {
     n: 6,
-    label: "Write the logo behaviour",
+    label: "Write the logo behaviours",
     // Writing the script triggers a recompile + domain reload in Unity, so the
     // attach CANNOT ride along in the same batch — it gets its own step below.
     phase: "script-create",
     prompt:
       "Write a C# MonoBehaviour named 'Base44LogoCube' that downloads the Base44 logo, applies it to every face of the cube, spins it 40 degrees per second, and pulses its emission.",
     narration:
-      "Wrote Base44LogoCube.cs into your project — Unity is compiling it now.",
+      "Wrote Base44LogoCube.cs and Base44LogoText.cs into your project — Unity is compiling them now.",
     actions: [
       {
         kind: "write",
         tool: "script.create",
         args: { script: "Base44LogoCube", code: LOGO_CUBE_CS },
+      },
+      {
+        kind: "write",
+        tool: "script.create",
+        args: { script: "Base44LogoText", code: LOGO_TEXT_CS },
       },
     ],
   },
@@ -108,12 +114,17 @@ export const BUILD_STEPS = [
     n: 7,
     label: "Skin it, spin it, make it glow",
     phase: "script-attach",
-    attach: { target: "Base44Logo", script: "Base44LogoCube" },
-    prompt: "Attach Base44LogoCube to Base44Logo once Unity finishes compiling.",
+    attach: [
+      { target: "Base44Logo", script: "Base44LogoCube" },
+      { target: "Floor", script: "Base44LogoText" },
+    ],
+    prompt:
+      "Attach Base44LogoCube to Base44Logo and Base44LogoText to Floor once Unity finishes compiling.",
     narration:
-      "Base44 logo mapped onto all six faces, spinning at 40°/sec with a pulsing orange glow — it animates right in the Scene view.",
+      "Base44 logo mapped onto all six faces, spinning at 40°/sec with a pulsing orange glow — and a floating orange BASE44 wordmark bobbing beside the cube.",
     actions: [
       { kind: "write", tool: "script.attach", args: { target: "Base44Logo", script: "Base44LogoCube" } },
+      { kind: "write", tool: "script.attach", args: { target: "Floor", script: "Base44LogoText" } },
     ],
   },
 ];

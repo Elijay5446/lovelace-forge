@@ -238,10 +238,10 @@ export default function AppWorkspace() {
 
       if (attachStep) {
         setAutoRun((prev) => ({ ...prev, current: attachStep.n }));
-        const attached = await attachScript(
-          attachStep.attach.target,
-          attachStep.attach.script
-        );
+        let attached = true;
+        for (const a of attachStep.attach) {
+          if (!(await attachScript(a.target, a.script))) attached = false;
+        }
         await base44.entities.Message.create({
           conversation_id: convoId,
           role: "assistant",
