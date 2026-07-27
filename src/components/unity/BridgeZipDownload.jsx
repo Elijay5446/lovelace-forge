@@ -29,7 +29,7 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.1.0";
+        public const string Version = "1.2.0";
 
         // The host we actually managed to bind to (set on a successful Start).
         public static string BoundHost { get; private set; } = "127.0.0.1";
@@ -41,12 +41,26 @@ namespace LovelaceForge.Bridge
         private static HttpListener _listener;
         private static CancellationTokenSource _cts;
         private static readonly ConcurrentQueue<Action> _mainQueue = new ConcurrentQueue<Action>();
+        private static System.Timers.Timer _pump;
 
         public static bool IsRunning => _listener != null && _listener.IsListening;
 
         static BridgeServer()
         {
             EditorApplication.update += DrainMainQueue;
+            // A focus-proof pump: EditorApplication.update THROTTLES when the Unity
+            // window is not focused (e.g. while you're in the browser sending a
+            // chat), so /execute jobs would sit in the queue and time out. This
+            // background timer keeps ticking regardless of focus and marshals a
+            // drain onto the foreground thread, so commands always run.
+            _pump = new System.Timers.Timer(100) { AutoReset = true };
+            _pump.Elapsed += (_, __) =>
+            {
+                if (_mainQueue.IsEmpty) return;
+                EditorApplication.delayCall += DrainMainQueue;
+            };
+            _pump.Start();
+
             // Bring the bridge back up automatically after a domain reload.
             if (SessionState.GetBool("LovelaceBridgeRunning", false))
                 EditorApplication.delayCall += () => Start();
