@@ -1,6 +1,5 @@
 import React from "react";
 import { ChevronDown, Sparkles, Wand2 } from "lucide-react";
-import LogoSequence from "@/components/chat/LogoSequence";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -89,7 +88,6 @@ export default function EmptyState({ onPrefill, onRunDemo }) {
           </div>
         )}
 
-        <LogoSequence onPrefill={onPrefill} />
       </div>
     </div>
   );
