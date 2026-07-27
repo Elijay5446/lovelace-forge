@@ -33,19 +33,20 @@ public class Base44LogoCube : MonoBehaviour
     {
         var filter = GetComponent<MeshFilter>();
         if (filter == null) return;
-        if (filter.sharedMesh != null && filter.sharedMesh.name == "Base44LogoCubeMesh_v2") return;
+        if (filter.sharedMesh != null && filter.sharedMesh.name == "Base44LogoCubeMesh_v3") return;
 
         var temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
         var source = temp.GetComponent<MeshFilter>().sharedMesh;
         var mesh = Instantiate(source);
         DestroyImmediate(temp);
 
-        mesh.name = "Base44LogoCubeMesh_v2";
+        mesh.name = "Base44LogoCubeMesh_v3";
         var normals = mesh.normals;
         var uv = mesh.uv;
         for (int i = 0; i < uv.Length && i < normals.Length; i++)
         {
-            if (normals[i].y < -0.5f) uv[i] = new Vector2(1f - uv[i].x, 1f - uv[i].y);
+            if (normals[i].y < -0.5f) uv[i] = new Vector2(1f - uv[i].x, uv[i].y);
+            else uv[i] = new Vector2(uv[i].x, 1f - uv[i].y);
         }
         mesh.uv = uv;
         filter.sharedMesh = mesh;
