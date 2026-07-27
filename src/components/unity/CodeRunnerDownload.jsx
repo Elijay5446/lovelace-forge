@@ -29,10 +29,17 @@ namespace LovelaceForge.Bridge
     ///
     /// READ commands (safe off the main thread, run instantly regardless of focus):
     ///   ping · scene.info · scene.hierarchy · selection.info · assets.count · editor.info
+    ///   object.inspect
     /// WRITE commands (mutate the scene/project — MUST run on the main thread; the
     /// bridge marshals these onto a force-ticked queue):
-    ///   object.create · component.add · object.rename · object.delete
-    ///   object.move · script.create · script.attach
+    ///   object.create · object.empty · component.add · object.rename · object.delete
+    ///   object.move · object.scale · object.rotate · object.parent · object.duplicate
+    ///   object.color · object.light · camera.frame · property.set
+    ///   script.create · script.attach · scene.save · editor.play
+    ///
+    /// property.set is the universal escape hatch: it uses reflection to set almost
+    /// any public field/property on any component of a target object, so Lovelace can
+    /// configure things there's no dedicated tool for — WITHOUT any compiler dependency.
     ///
     /// Commands arrive either as a bare word ("scene.hierarchy") or as a JSON
     /// envelope { "tool": "object.create", "args": { ... } } sent by Lovelace.
@@ -47,12 +54,23 @@ namespace LovelaceForge.Bridge
             switch (t)
             {
                 case "object.create":
+                case "object.empty":
                 case "component.add":
                 case "object.rename":
                 case "object.delete":
                 case "object.move":
+                case "object.scale":
+                case "object.rotate":
+                case "object.parent":
+                case "object.duplicate":
+                case "object.color":
+                case "object.light":
+                case "camera.frame":
+                case "property.set":
                 case "script.create":
                 case "script.attach":
+                case "scene.save":
+                case "editor.play":
                 case "log":
                     return true;
                 default:
@@ -82,10 +100,15 @@ namespace LovelaceForge.Bridge
             public string name;      // object / new name
             public string target;    // object to act on (by name)
             public string parent;    // optional parent name
-            public string component; // component type to add
+            public string component; // component type (component.add / property.set)
             public string script;    // script class name
             public string code;      // script source (for script.create)
-            public float x, y, z;    // position / move
+            public string property;  // property/field name (property.set)
+            public string value;     // string value to coerce (property.set)
+            public string color;     // hex like #RRGGBB or a name (object.color / object.light)
+            public string mode;      // light kind: directional | point | spot (object.light)
+            public float x, y, z;    // position / move / rotation (euler) / scale
+            public float intensity;  // light intensity (object.light)
         }
 
         public static string Run(string code)
@@ -129,14 +152,17 @@ namespace LovelaceForge.Bridge
                     case "selection.info": return SelectionInfo();
                     case "assets.count": return AssetsCount();
                     case "editor.info": return EditorInfo();
+                    case "scene.save": return SceneSave();
                     case "log":
                         Debug.Log("[Lovelace Forge] " + arg);
                         return "Logged to the Unity Console: " + arg;
                     default:
                         return "Unknown command '" + cmd + "'. Available reads: scene.info, " +
-                               "scene.hierarchy, selection.info, assets.count, editor.info. " +
-                               "Writes are sent as JSON tools: object.create, component.add, " +
-                               "object.rename, object.delete, object.move, script.create, script.attach.";
+                               "scene.hierarchy, selection.info, assets.count, editor.info, object.inspect. " +
+                               "Writes are sent as JSON tools: object.create, object.empty, component.add, " +
+                               "object.rename, object.delete, object.move, object.scale, object.rotate, " +
+                               "object.parent, object.duplicate, object.color, object.light, camera.frame, " +
+                               "property.set, script.create, script.attach, scene.save, editor.play.";
                 }
             }
             catch (Exception e)
@@ -156,13 +182,25 @@ namespace LovelaceForge.Bridge
                 case "selection.info": return SelectionInfo();
                 case "assets.count": return AssetsCount();
                 case "editor.info": return EditorInfo();
+                case "object.inspect": return ObjectInspect(a);
                 case "object.create": return ObjectCreate(a);
+                case "object.empty": return ObjectEmpty(a);
                 case "component.add": return ComponentAdd(a);
                 case "object.rename": return ObjectRename(a);
                 case "object.delete": return ObjectDelete(a);
                 case "object.move": return ObjectMove(a);
+                case "object.scale": return ObjectScale(a);
+                case "object.rotate": return ObjectRotate(a);
+                case "object.parent": return ObjectParent(a);
+                case "object.duplicate": return ObjectDuplicate(a);
+                case "object.color": return ObjectColor(a);
+                case "object.light": return ObjectLight(a);
+                case "camera.frame": return CameraFrame(a);
+                case "property.set": return PropertySet(a);
                 case "script.create": return ScriptCreate(a);
                 case "script.attach": return ScriptAttach(a);
+                case "scene.save": return SceneSave();
+                case "editor.play": return EditorPlay(a);
                 default: return "Unknown tool '" + tool + "'.";
             }
         }
@@ -264,6 +302,242 @@ namespace LovelaceForge.Bridge
             go.transform.position = new Vector3(a.x, a.y, a.z);
             EditorSceneManager.MarkSceneDirty(go.scene);
             return "Moved '" + a.target + "' to (" + a.x + ", " + a.y + ", " + a.z + ").";
+        }
+
+        private static string ObjectEmpty(Args a)
+        {
+            var go = new GameObject(string.IsNullOrWhiteSpace(a.name) ? "GameObject" : a.name);
+            go.transform.position = new Vector3(a.x, a.y, a.z);
+            if (!string.IsNullOrWhiteSpace(a.parent))
+            {
+                var p = Find(a.parent);
+                if (p != null) go.transform.SetParent(p.transform, true);
+            }
+            Undo.RegisterCreatedObjectUndo(go, "Create " + go.name);
+            Selection.activeGameObject = go;
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Created empty GameObject '" + go.name + "'.";
+        }
+
+        private static string ObjectScale(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            Undo.RecordObject(go.transform, "Scale");
+            go.transform.localScale = new Vector3(a.x, a.y, a.z);
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Scaled '" + a.target + "' to (" + a.x + ", " + a.y + ", " + a.z + ").";
+        }
+
+        private static string ObjectRotate(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            Undo.RecordObject(go.transform, "Rotate");
+            go.transform.rotation = Quaternion.Euler(a.x, a.y, a.z);
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Rotated '" + a.target + "' to euler (" + a.x + ", " + a.y + ", " + a.z + ").";
+        }
+
+        private static string ObjectParent(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            Undo.RecordObject(go.transform, "Reparent");
+            if (string.IsNullOrWhiteSpace(a.parent))
+            {
+                go.transform.SetParent(null, true);
+                EditorSceneManager.MarkSceneDirty(go.scene);
+                return "Un-parented '" + a.target + "' (moved to scene root).";
+            }
+            var p = Find(a.parent);
+            if (p == null) return "RUNTIME ERROR: no parent named '" + a.parent + "'.";
+            go.transform.SetParent(p.transform, true);
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Parented '" + a.target + "' under '" + a.parent + "'.";
+        }
+
+        private static string ObjectDuplicate(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            var copy = UnityEngine.Object.Instantiate(go, go.transform.parent);
+            copy.name = string.IsNullOrWhiteSpace(a.name) ? go.name + " (Copy)" : a.name;
+            // If the caller supplied a position, move the copy there; otherwise nudge
+            // it slightly so it doesn't perfectly overlap the original.
+            if (a.x != 0f || a.y != 0f || a.z != 0f) copy.transform.position = new Vector3(a.x, a.y, a.z);
+            else copy.transform.position = go.transform.position + new Vector3(1f, 0f, 0f);
+            Undo.RegisterCreatedObjectUndo(copy, "Duplicate " + go.name);
+            Selection.activeGameObject = copy;
+            EditorSceneManager.MarkSceneDirty(copy.scene);
+            return "Duplicated '" + a.target + "' as '" + copy.name + "'.";
+        }
+
+        // Creates (once) a material on the object's renderer and tints it. Uses the
+        // URP/HDRP-safe approach of setting whatever base color property exists.
+        private static string ObjectColor(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            var r = go.GetComponent<Renderer>();
+            if (r == null) return "RUNTIME ERROR: '" + a.target + "' has no Renderer to color.";
+            if (!TryParseColor(a.color, out var col)) return "RUNTIME ERROR: couldn't parse color '" + a.color + "'.";
+            Undo.RecordObject(r, "Color");
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var mat = new Material(shader);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", col);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", col);
+            mat.color = col;
+            r.sharedMaterial = mat;
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Set the color of '" + a.target + "' to " + a.color + ".";
+        }
+
+        // Creates a Light object (directional/point/spot). If a.target names an
+        // existing object, the Light is added to it instead of making a new one.
+        private static string ObjectLight(Args a)
+        {
+            GameObject go = string.IsNullOrWhiteSpace(a.target) ? null : Find(a.target);
+            bool created = false;
+            if (go == null)
+            {
+                go = new GameObject(string.IsNullOrWhiteSpace(a.name) ? "Light" : a.name);
+                go.transform.position = new Vector3(a.x, a.y, a.z);
+                created = true;
+            }
+            var light = go.GetComponent<Light>() ?? Undo.AddComponent<Light>(go);
+            switch ((a.mode ?? "point").Trim().ToLowerInvariant())
+            {
+                case "directional": light.type = LightType.Directional; break;
+                case "spot": light.type = LightType.Spot; break;
+                default: light.type = LightType.Point; break;
+            }
+            if (a.intensity > 0) light.intensity = a.intensity;
+            if (!string.IsNullOrWhiteSpace(a.color) && TryParseColor(a.color, out var col)) light.color = col;
+            if (created) Undo.RegisterCreatedObjectUndo(go, "Create Light");
+            Selection.activeGameObject = go;
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return (created ? "Created " : "Configured ") + light.type + " light '" + go.name + "'.";
+        }
+
+        // Points the Scene view camera at a target object so you can see the result.
+        private static string CameraFrame(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            Selection.activeGameObject = go;
+            if (SceneView.lastActiveSceneView != null)
+            {
+                SceneView.lastActiveSceneView.FrameSelected();
+                return "Framed the Scene view on '" + a.target + "'.";
+            }
+            return "Selected '" + a.target + "' (no Scene view open to frame).";
+        }
+
+        // The universal escape hatch. Sets a public field or property (by name) on a
+        // component of the target — via reflection, coercing the string value to the
+        // member's type. Lets Lovelace configure anything without a dedicated tool.
+        private static string PropertySet(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            var type = ResolveComponentType(a.component);
+            if (type == null) return "RUNTIME ERROR: unknown component '" + a.component + "'.";
+            var comp = go.GetComponent(type);
+            if (comp == null) return "RUNTIME ERROR: '" + a.target + "' has no " + type.Name + ".";
+            Undo.RecordObject(comp, "Set " + a.property);
+
+            var prop = type.GetProperty(a.property);
+            if (prop != null && prop.CanWrite)
+            {
+                object v = Coerce(a.value, prop.PropertyType);
+                if (v == null) return "RUNTIME ERROR: couldn't convert '" + a.value + "' to " + prop.PropertyType.Name + ".";
+                prop.SetValue(comp, v);
+                EditorSceneManager.MarkSceneDirty(go.scene);
+                return "Set " + type.Name + "." + a.property + " = " + a.value + " on '" + a.target + "'.";
+            }
+            var field = type.GetField(a.property);
+            if (field != null)
+            {
+                object v = Coerce(a.value, field.FieldType);
+                if (v == null) return "RUNTIME ERROR: couldn't convert '" + a.value + "' to " + field.FieldType.Name + ".";
+                field.SetValue(comp, v);
+                EditorSceneManager.MarkSceneDirty(go.scene);
+                return "Set " + type.Name + "." + a.property + " = " + a.value + " on '" + a.target + "'.";
+            }
+            return "RUNTIME ERROR: " + type.Name + " has no writable member '" + a.property + "'.";
+        }
+
+        // Coerces a string into common Unity/BCL types for property.set.
+        private static object Coerce(string s, Type t)
+        {
+            try
+            {
+                if (t == typeof(string)) return s;
+                if (t == typeof(bool)) return bool.Parse(s);
+                if (t == typeof(int)) return int.Parse(s);
+                if (t == typeof(float)) return float.Parse(s);
+                if (t == typeof(double)) return double.Parse(s);
+                if (t.IsEnum) return Enum.Parse(t, s, true);
+                if (t == typeof(Vector3)) { var p = s.Split(','); return new Vector3(float.Parse(p[0]), float.Parse(p[1]), float.Parse(p[2])); }
+                if (t == typeof(Vector2)) { var p = s.Split(','); return new Vector2(float.Parse(p[0]), float.Parse(p[1])); }
+                if (t == typeof(Color)) { TryParseColor(s, out var c); return c; }
+                return Convert.ChangeType(s, t);
+            }
+            catch { return null; }
+        }
+
+        private static bool TryParseColor(string s, out Color col)
+        {
+            col = Color.white;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            s = s.Trim();
+            if (ColorUtility.TryParseHtmlString(s, out col)) return true;
+            switch (s.ToLowerInvariant())
+            {
+                case "red": col = Color.red; return true;
+                case "green": col = Color.green; return true;
+                case "blue": col = Color.blue; return true;
+                case "yellow": col = Color.yellow; return true;
+                case "white": col = Color.white; return true;
+                case "black": col = Color.black; return true;
+                case "cyan": col = Color.cyan; return true;
+                case "magenta": col = Color.magenta; return true;
+                case "gray": case "grey": col = Color.gray; return true;
+                case "orange": col = new Color(1f, 0.5f, 0f); return true;
+                default: return false;
+            }
+        }
+
+        private static string ObjectInspect(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            var sb = new StringBuilder();
+            sb.AppendLine("Object: " + go.name + (go.activeSelf ? "" : " (inactive)"));
+            var tr = go.transform;
+            sb.AppendLine("Position: " + tr.position + "  Rotation: " + tr.eulerAngles + "  Scale: " + tr.localScale);
+            sb.AppendLine("Parent: " + (tr.parent ? tr.parent.name : "(root)") + "  Children: " + tr.childCount);
+            sb.AppendLine("Components:");
+            foreach (var c in go.GetComponents<Component>())
+                if (c != null) sb.AppendLine("  - " + c.GetType().Name);
+            return sb.ToString().TrimEnd();
+        }
+
+        private static string SceneSave()
+        {
+            var scene = SceneManager.GetActiveScene();
+            if (string.IsNullOrEmpty(scene.path))
+                return "The scene has never been saved. Save it once manually (File ▸ Save As) so it has a path, then I can save it for you.";
+            EditorSceneManager.SaveScene(scene);
+            return "Saved scene '" + scene.name + "'.";
+        }
+
+        private static string EditorPlay(Args a)
+        {
+            bool wantPlay = string.IsNullOrWhiteSpace(a.mode) || a.mode.Trim().ToLowerInvariant() != "stop";
+            EditorApplication.isPlaying = wantPlay;
+            return wantPlay ? "Entering Play mode." : "Exiting Play mode.";
         }
 
         // Writes a C# MonoBehaviour into Assets/LovelaceForge/ and triggers a

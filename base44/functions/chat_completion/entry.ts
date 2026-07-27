@@ -18,20 +18,34 @@ const BRIDGE_READ_COMMANDS = [
   "selection.info",
   "assets.count",
   "editor.info",
+  "object.inspect",
 ];
 
 // The write tools the bridge can execute in the live editor.
 const BRIDGE_WRITE_TOOLS = [
   "object.create",
+  "object.empty",
   "component.add",
   "object.rename",
   "object.delete",
   "object.move",
+  "object.scale",
+  "object.rotate",
+  "object.parent",
+  "object.duplicate",
+  "object.color",
+  "object.light",
+  "camera.frame",
+  "property.set",
   "script.create",
   "script.attach",
+  "scene.save",
+  "editor.play",
 ];
 
-type BridgeAction = { kind: "read"; command: string } | { kind: "write"; tool: string; args: any };
+type BridgeAction =
+  | { kind: "read"; command: string; args?: any }
+  | { kind: "write"; tool: string; args: any };
 
 // Ask the model whether this user turn needs the live Unity editor, and if so
 // what to run. Returns a read command, a write tool call, or null. Deterministic
@@ -40,19 +54,35 @@ type BridgeAction = { kind: "read"; command: string } | { kind: "write"; tool: s
 async function routeBridgeAction(groqKey: string, userMessage: string): Promise<BridgeAction | null> {
   const routerSystem =
     "You convert a game developer's message into a Unity editor bridge action, or NONE. " +
-    "Reply with ONLY a single minified JSON object, no prose.\n\n" +
-    "READ actions — { \"kind\": \"read\", \"command\": \"<one of>\" }:\n" +
-    "  scene.info | scene.hierarchy | selection.info | assets.count | editor.info\n\n" +
+    "Reply with ONLY a single minified JSON object, no prose. You have FULL command of the " +
+    "user's live Unity editor through these tools — prefer acting over explaining.\n\n" +
+    "READ actions — { \"kind\": \"read\", \"command\": \"<one of>\", \"args\": { ... } }:\n" +
+    "  scene.info | scene.hierarchy | selection.info | assets.count | editor.info  (no args)\n" +
+    "  object.inspect  args: { target: <object name> }  — full transform + component list\n\n" +
     "WRITE actions — { \"kind\": \"write\", \"tool\": \"<tool>\", \"args\": { ... } }:\n" +
-    "  object.create  args: { type: cube|sphere|capsule|plane|cylinder|quad, name?, parent?, x?, y?, z? }\n" +
-    "  component.add  args: { target: <object name>, component: <e.g. Rigidbody, BoxCollider, Light> }\n" +
-    "  object.rename  args: { target: <name>, name: <new name> }\n" +
-    "  object.delete  args: { target: <name> }\n" +
-    "  object.move    args: { target: <name>, x, y, z }\n" +
-    "  script.create  args: { script: <ClassName>, code?: <full C# MonoBehaviour source> }\n" +
-    "  script.attach  args: { target: <name>, script: <ClassName> }\n\n" +
+    "  object.create   args: { type: cube|sphere|capsule|plane|cylinder|quad, name?, parent?, x?, y?, z? }\n" +
+    "  object.empty    args: { name?, parent?, x?, y?, z? }  — empty GameObject (great as a container)\n" +
+    "  component.add   args: { target, component: <e.g. Rigidbody, BoxCollider, AudioSource> }\n" +
+    "  object.rename   args: { target, name: <new name> }\n" +
+    "  object.delete   args: { target }\n" +
+    "  object.move     args: { target, x, y, z }  — world position\n" +
+    "  object.scale    args: { target, x, y, z }  — local scale\n" +
+    "  object.rotate   args: { target, x, y, z }  — euler angles in degrees\n" +
+    "  object.parent   args: { target, parent }  — omit parent to un-parent to root\n" +
+    "  object.duplicate args: { target, name?, x?, y?, z? }\n" +
+    "  object.color    args: { target, color: <#RRGGBB or name like red/blue> }\n" +
+    "  object.light    args: { mode: directional|point|spot, name?, target?, color?, intensity?, x?, y?, z? }\n" +
+    "  camera.frame    args: { target }  — point the Scene view at an object\n" +
+    "  property.set    args: { target, component: <Type>, property: <member>, value: <string> }\n" +
+    "                  — UNIVERSAL: set any field/property on any component (e.g. Rigidbody mass=5,\n" +
+    "                    Light range=10, Camera fieldOfView=90). Vector3 value as 'x,y,z'.\n" +
+    "  script.create   args: { script: <ClassName>, code?: <full C# MonoBehaviour source> }\n" +
+    "  script.attach   args: { target, script: <ClassName> }\n" +
+    "  scene.save      args: {}\n" +
+    "  editor.play     args: { mode: play|stop }\n\n" +
     "Rules: default position to 0,0,0 if unspecified. For a floor/ground use type plane. " +
-    "For a player use type capsule named 'Player' unless told otherwise. " +
+    "For a player use type capsule named 'Player' unless told otherwise. Use property.set for any " +
+    "configuration that has no dedicated tool. The user's message may imply ONE clear action — pick it. " +
     "If the user asks a general question, wants advice, or wants code explained (not placed in the " +
     "scene), reply exactly {\"kind\":\"none\"}. Only choose an action when the user clearly wants to " +
     "read from or change their actual open Unity scene/project.";
@@ -78,7 +108,7 @@ async function routeBridgeAction(groqKey: string, userMessage: string): Promise<
     try { parsed = JSON.parse(raw); } catch { return null; }
     if (!parsed || parsed.kind === "none") return null;
     if (parsed.kind === "read" && BRIDGE_READ_COMMANDS.includes(parsed.command)) {
-      return { kind: "read", command: parsed.command };
+      return { kind: "read", command: parsed.command, args: parsed.args || {} };
     }
     if (parsed.kind === "write" && BRIDGE_WRITE_TOOLS.includes(parsed.tool)) {
       return { kind: "write", tool: parsed.tool, args: parsed.args || {} };
@@ -93,7 +123,14 @@ async function routeBridgeAction(groqKey: string, userMessage: string): Promise<
 // word for reads, or a JSON envelope { tool, args } for writes (args is itself a
 // JSON string, matching the CodeRunner Envelope/Args contract).
 function actionToCode(action: BridgeAction): string {
-  if (action.kind === "read") return action.command;
+  if (action.kind === "read") {
+    // Most reads are bare words; object.inspect needs a target, so it goes
+    // through the same JSON envelope the write tools use.
+    if (action.command === "object.inspect") {
+      return JSON.stringify({ tool: action.command, args: JSON.stringify(action.args || {}) });
+    }
+    return action.command;
+  }
   return JSON.stringify({ tool: action.tool, args: JSON.stringify(action.args || {}) });
 }
 
