@@ -9,7 +9,8 @@ public class Base44LogoText : MonoBehaviour
     const string ChildName = "Base44LogoText_Mesh";
 
     Transform textTransform;
-    Vector3 basePosition = new Vector3(2.9f, 1.6f, 0f);
+    Vector3 basePosition;
+    float bobScale = 1f;
 
     void OnEnable()
     {
@@ -26,9 +27,19 @@ public class Base44LogoText : MonoBehaviour
             existing = go.transform;
         }
         textTransform = existing;
+
+        // The Floor is scaled (4,1,4) — compensate so the text isn't stretched
+        // or pushed far away, and world-space placement stays at (2.9, 1.6, 0).
+        Vector3 ps = transform.lossyScale;
+        float sx = Mathf.Approximately(ps.x, 0f) ? 1f : ps.x;
+        float sy = Mathf.Approximately(ps.y, 0f) ? 1f : ps.y;
+        float sz = Mathf.Approximately(ps.z, 0f) ? 1f : ps.z;
+        basePosition = new Vector3(2.9f / sx, 1.6f / sy, 0f);
+        bobScale = 1f / sy;
+
         textTransform.localPosition = basePosition;
         textTransform.localRotation = Quaternion.identity;
-        textTransform.localScale = Vector3.one;
+        textTransform.localScale = new Vector3(1f / sx, 1f / sy, 1f / sz);
 
         var mesh = textTransform.GetComponent<TextMesh>();
         if (mesh == null) mesh = textTransform.gameObject.AddComponent<TextMesh>();
@@ -61,7 +72,7 @@ public class Base44LogoText : MonoBehaviour
             if (textTransform == null) return;
         }
 
-        float bob = Mathf.Sin(Time.realtimeSinceStartup * 1.4f) * 0.08f;
+        float bob = Mathf.Sin(Time.realtimeSinceStartup * 1.4f) * 0.08f * bobScale;
         textTransform.localPosition = basePosition + new Vector3(0f, bob, 0f);
     }
 }
