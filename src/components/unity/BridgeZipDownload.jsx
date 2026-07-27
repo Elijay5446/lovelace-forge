@@ -29,7 +29,7 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
 
         // The host we actually managed to bind to (set on a successful Start).
         public static string BoundHost { get; private set; } = "127.0.0.1";
@@ -48,16 +48,20 @@ namespace LovelaceForge.Bridge
         static BridgeServer()
         {
             EditorApplication.update += DrainMainQueue;
-            // A focus-proof pump: EditorApplication.update THROTTLES when the Unity
-            // window is not focused (e.g. while you're in the browser sending a
-            // chat), so /execute jobs would sit in the queue and time out. This
-            // background timer keeps ticking regardless of focus and marshals a
-            // drain onto the foreground thread, so commands always run.
-            _pump = new System.Timers.Timer(100) { AutoReset = true };
+
+            // Focus-proof ticking. EditorApplication.update (and delayCall) THROTTLE
+            // hard — often to a near stop — when the Unity window is not focused,
+            // e.g. while you're in the browser sending a chat. That left /execute
+            // jobs sitting in the queue until they timed out. The fix is to force
+            // the editor to keep running its loop in the background: this timer runs
+            // on a worker thread and, whenever work is queued, pokes the editor's
+            // player loop so DrainMainQueue actually gets to run.
+            _pump = new System.Timers.Timer(50) { AutoReset = true };
             _pump.Elapsed += (_, __) =>
             {
                 if (_mainQueue.IsEmpty) return;
-                EditorApplication.delayCall += DrainMainQueue;
+                try { EditorApplication.QueuePlayerLoopUpdate(); }
+                catch { /* editor not ready yet */ }
             };
             _pump.Start();
 
