@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { GENRE_PLAYBOOKS } from '../../shared/genreKnowledge.ts';
-import { getBridge, runOnBridge } from '../../shared/bridge.ts';
+import { getBridge, runOnBridge, runActionsOnBridge, resultLooksFailed } from '../../shared/bridge.ts';
 import { resolveGroqKey } from '../../shared/groq.ts';
 
 const SYSTEM_PROMPT =
@@ -220,11 +220,10 @@ Deno.serve(async (req) => {
         let anySuccess = false;
 
         if (!anyReads && actions.length > 1) {
-          const batchCode = JSON.stringify({
-            tool: "batch",
-            steps: actions.map((a) => actionToCode(a)),
-          });
-          const out = await runOnBridge(bridge.tunnel_url, batchCode);
+          const out = await runActionsOnBridge(
+            bridge.tunnel_url,
+            actions.map((a) => actionToCode(a))
+          );
           if (out?.success) {
             anySuccess = true;
             steps.push(String(out.result ?? "ok").slice(0, 3000));
@@ -236,11 +235,12 @@ Deno.serve(async (req) => {
           for (const action of actions) {
             const label = action.kind === "read" ? action.command : action.tool;
             const out = await runOnBridge(bridge.tunnel_url, actionToCode(action));
-            if (out?.success) {
+            const text = String(out?.result ?? "ok");
+            if (out?.success && !(action.kind === "write" && resultLooksFailed(text))) {
               anySuccess = true;
-              steps.push(`✓ \`${label}\` → ${String(out.result ?? "ok").slice(0, 500)}`);
+              steps.push(`✓ \`${label}\` → ${text.slice(0, 500)}`);
             } else {
-              steps.push(`✗ \`${label}\` FAILED → ${out?.error || "unknown error"}`);
+              steps.push(`✗ \`${label}\` FAILED → ${out?.error || text.slice(0, 300) || "unknown error"}`);
             }
           }
         }

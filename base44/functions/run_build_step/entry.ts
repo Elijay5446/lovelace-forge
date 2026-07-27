@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { getBridge, runOnBridge } from '../../shared/bridge.ts';
+import { getBridge, runActionsOnBridge } from '../../shared/bridge.ts';
 
 // Runs ONE pre-authored logo-build step directly against the user's live Unity
 // bridge — with ZERO Groq/LLM calls. The frontend passes the step's exact
@@ -53,12 +53,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Bundle every write into one batch envelope — a single main-thread pass.
-    const batchCode = JSON.stringify({
-      tool: "batch",
-      steps: actions.map((a: any) => actionToCode(a)),
-    });
-    const out = await runOnBridge(bridge.tunnel_url, batchCode);
+    // Try one batch envelope first (single main-thread pass); older bridge
+    // versions without `batch` fall back to sequential — and error text inside
+    // any step's result marks the step failed instead of a false success.
+    const out = await runActionsOnBridge(
+      bridge.tunnel_url,
+      actions.map((a: any) => actionToCode(a))
+    );
 
     if (!out?.success) {
       const errMsg = out?.error || "The editor could not run this step.";

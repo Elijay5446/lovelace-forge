@@ -64,3 +64,44 @@ export async function runOnBridge(tunnelUrl: string, code: string) {
     return { success: true, result: r.body };
   }
 }
+
+// The bridge marks a command "success" as long as it RAN — but the CodeRunner
+// reports real problems inside the result text ("RUNTIME ERROR: ...",
+// "Unknown tool '...'"). Treat those as failures so we never post a false
+// success narration.
+export function resultLooksFailed(result: unknown): boolean {
+  const s = String(result ?? "");
+  return /RUNTIME ERROR|Unknown tool|Unknown command|^ERROR:/im.test(s);
+}
+
+// Runs a list of already-serialized action envelopes. Tries ONE `batch` call
+// first (fast path, single main-thread pass). Older CodeRunner versions don't
+// know `batch` — they answer "Unknown tool 'batch'" with success=true — so we
+// detect that and fall back to running each action sequentially. Any step whose
+// result text contains an error marks the whole run failed.
+export async function runActionsOnBridge(tunnelUrl: string, codes: string[]) {
+  if (codes.length === 0) return { success: true, result: "" };
+
+  if (codes.length > 1) {
+    const batchCode = JSON.stringify({ tool: "batch", steps: codes });
+    const out = await runOnBridge(tunnelUrl, batchCode);
+    const text = String(out?.result ?? "");
+    const oldBridge = /Unknown (tool|command) 'batch'/i.test(text);
+    if (!oldBridge) {
+      if (!out?.success) return { success: false, error: out?.error || "The editor could not run this step." };
+      if (resultLooksFailed(text)) return { success: false, error: text.slice(0, 500) };
+      return { success: true, result: text };
+    }
+    // fall through to sequential for old bridges
+  }
+
+  const lines: string[] = [];
+  for (const code of codes) {
+    const out = await runOnBridge(tunnelUrl, code);
+    if (!out?.success) return { success: false, error: out?.error || "The editor could not run this step." };
+    const text = String(out?.result ?? "ok");
+    if (resultLooksFailed(text)) return { success: false, error: text.slice(0, 500) };
+    lines.push(text);
+  }
+  return { success: true, result: lines.join("\n") };
+}
