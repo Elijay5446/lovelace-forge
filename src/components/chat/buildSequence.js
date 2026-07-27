@@ -13,6 +13,26 @@
 // run_build_step backend function so the outline is authored once.
 export const BUILD_STEPS = [
   {
+    n: 0,
+    label: "Clear the stage",
+    prompt:
+      "Delete any leftover demo objects from a previous run: Base44Logo, Logo_A, Logo_B, Logo_C, Logo_Accent, Floor, KeyLight, RimLight.",
+    narration:
+      "Cleared out any leftovers from an earlier run — starting from a clean stage.",
+    // Missing objects are fine here: this step never blocks the build.
+    tolerant: true,
+    actions: [
+      { kind: "write", tool: "object.delete", args: { target: "Base44Logo" } },
+      { kind: "write", tool: "object.delete", args: { target: "Logo_A" } },
+      { kind: "write", tool: "object.delete", args: { target: "Logo_B" } },
+      { kind: "write", tool: "object.delete", args: { target: "Logo_C" } },
+      { kind: "write", tool: "object.delete", args: { target: "Logo_Accent" } },
+      { kind: "write", tool: "object.delete", args: { target: "Floor" } },
+      { kind: "write", tool: "object.delete", args: { target: "KeyLight" } },
+      { kind: "write", tool: "object.delete", args: { target: "RimLight" } },
+    ],
+  },
+  {
     n: 1,
     label: "Set the stage",
     prompt:

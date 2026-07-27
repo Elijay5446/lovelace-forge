@@ -32,6 +32,9 @@ Deno.serve(async (req) => {
     const conversationId = body?.conversation_id;
     const actions = Array.isArray(body?.actions) ? body.actions : [];
     const narration = typeof body?.narration === "string" ? body.narration : "";
+    // Tolerant steps (e.g. clearing leftovers, where objects may not exist)
+    // never stop the build.
+    const tolerant = body?.tolerant === true;
 
     if (!conversationId || actions.length === 0) {
       return Response.json(
@@ -61,7 +64,7 @@ Deno.serve(async (req) => {
       actions.map((a: any) => actionToCode(a))
     );
 
-    if (!out?.success) {
+    if (!out?.success && !tolerant) {
       const errMsg = out?.error || "The editor could not run this step.";
       await base44.entities.Message.create({
         conversation_id: conversationId,

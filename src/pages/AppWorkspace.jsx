@@ -150,6 +150,7 @@ export default function AppWorkspace() {
         conversation_id: convoId,
         actions: step.actions,
         narration: step.narration,
+        tolerant: !!step.tolerant,
       });
       await loadMessages(convoId);
       const data = res?.data || res;
