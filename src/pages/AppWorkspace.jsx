@@ -9,6 +9,7 @@ import CouncilPanel from "@/components/chat/CouncilPanel";
 import EmptyState from "@/components/chat/EmptyState";
 import BuildPanel from "@/components/chat/BuildPanel";
 import { BUILD_STEPS } from "@/components/chat/buildSequence";
+import { waitForObject } from "@/components/chat/verifyBuild";
 import { Hammer, Menu } from "lucide-react";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
@@ -152,12 +153,26 @@ export default function AppWorkspace() {
         narration: step.narration,
         tolerant: !!step.tolerant,
       });
-      await loadMessages(convoId);
       const data = res?.data || res;
       if (!data?.success) {
+        // The editor's write queue can outlast a single backend call. If we know
+        // what the step should produce, watch the live scene for it instead of
+        // calling the build failed.
+        if (step.verify && (await waitForObject(step.verify))) {
+          await base44.entities.Message.create({
+            conversation_id: convoId,
+            role: "assistant",
+            content: step.narration || "Step complete.",
+            model_source: "lovelace-forge/demo",
+          });
+          await loadMessages(convoId);
+          return true;
+        }
+        await loadMessages(convoId);
         setThreadError(data?.error || "That step couldn't run in Unity.");
         return false;
       }
+      await loadMessages(convoId);
       return true;
     } catch (err) {
       const msg = err?.response?.data?.error || err?.message || "Something went wrong.";
@@ -199,6 +214,7 @@ export default function AppWorkspace() {
       setAutoRun((prev) => ({ ...prev, current: last.n }));
       const ok = await runOneStep(convoId, {
         actions: build.flatMap((s) => s.actions),
+        verify: "Base44Logo",
         narration:
           build.map((s) => `✓ ${s.label} — ${s.narration}`).join("\n") +
           "\n\nThe whole logo is built and the spin script is attached. Give Unity a second to compile, then press Play.",
