@@ -27,15 +27,20 @@ public class Base44LogoCube : MonoBehaviour
     }
 
     // Unity's built-in cube UVs the bottom face rotated 180 degrees, so the logo
-    // reads upside down there. Copy the mesh once and flip just that face's UVs.
+    // reads upside down there. Take a fresh copy of the real primitive cube mesh
+    // (so any earlier edit is discarded) and flip just that face's UVs.
     void FixFlippedFace()
     {
         var filter = GetComponent<MeshFilter>();
-        if (filter == null || filter.sharedMesh == null) return;
-        if (filter.sharedMesh.name == "Base44LogoCubeMesh") return;
+        if (filter == null) return;
+        if (filter.sharedMesh != null && filter.sharedMesh.name == "Base44LogoCubeMesh_v2") return;
 
-        var mesh = Instantiate(filter.sharedMesh);
-        mesh.name = "Base44LogoCubeMesh";
+        var temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        var source = temp.GetComponent<MeshFilter>().sharedMesh;
+        var mesh = Instantiate(source);
+        DestroyImmediate(temp);
+
+        mesh.name = "Base44LogoCubeMesh_v2";
         var normals = mesh.normals;
         var uv = mesh.uv;
         for (int i = 0; i < uv.Length && i < normals.Length; i++)
