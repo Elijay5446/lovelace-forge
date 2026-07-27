@@ -21,8 +21,68 @@ public class Base44LogoCube : MonoBehaviour
     void OnEnable()
     {
         _lastTime = Time.realtimeSinceStartup;
+        EnsureUprightMesh();
         EnsureMaterial();
         BeginDownload();
+    }
+
+    // Unity's built-in cube shares a UV layout where the bottom (and, depending
+    // on version, one side) is rotated 180 degrees — which makes the logo appear
+    // upside down on that face. We build our own 24-vertex cube where every face
+    // gets its own upright 0..1 UV quad, so the logo reads correctly from every
+    // angle.
+    void EnsureUprightMesh()
+    {
+        var filter = GetComponent<MeshFilter>();
+        if (filter == null) return;
+        if (filter.sharedMesh != null && filter.sharedMesh.name == "Base44LogoCubeMesh") return;
+
+        Vector3[] normals6 = {
+            Vector3.forward, Vector3.back, Vector3.right, Vector3.left, Vector3.up, Vector3.down
+        };
+        Vector3[] ups6 = {
+            Vector3.up, Vector3.up, Vector3.up, Vector3.up, Vector3.back, Vector3.forward
+        };
+
+        var verts = new Vector3[24];
+        var norms = new Vector3[24];
+        var uvs = new Vector2[24];
+        var tris = new int[36];
+
+        for (int f = 0; f < 6; f++)
+        {
+            Vector3 n = normals6[f];
+            Vector3 up = ups6[f];
+            Vector3 right = Vector3.Cross(-n, up);
+            Vector3 c = n * 0.5f;
+            int v = f * 4;
+
+            verts[v + 0] = c - right * 0.5f - up * 0.5f;
+            verts[v + 1] = c + right * 0.5f - up * 0.5f;
+            verts[v + 2] = c + right * 0.5f + up * 0.5f;
+            verts[v + 3] = c - right * 0.5f + up * 0.5f;
+
+            uvs[v + 0] = new Vector2(0f, 0f);
+            uvs[v + 1] = new Vector2(1f, 0f);
+            uvs[v + 2] = new Vector2(1f, 1f);
+            uvs[v + 3] = new Vector2(0f, 1f);
+
+            for (int k = 0; k < 4; k++) norms[v + k] = n;
+
+            int t = f * 6;
+            tris[t + 0] = v + 0; tris[t + 1] = v + 2; tris[t + 2] = v + 1;
+            tris[t + 3] = v + 0; tris[t + 4] = v + 3; tris[t + 5] = v + 2;
+        }
+
+        var mesh = new Mesh();
+        mesh.name = "Base44LogoCubeMesh";
+        mesh.vertices = verts;
+        mesh.normals = norms;
+        mesh.uv = uvs;
+        mesh.triangles = tris;
+        mesh.RecalculateBounds();
+        mesh.RecalculateTangents();
+        filter.sharedMesh = mesh;
     }
 
     void EnsureMaterial()
