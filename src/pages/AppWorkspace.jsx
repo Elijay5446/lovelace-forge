@@ -139,29 +139,28 @@ export default function AppWorkspace() {
     }
   };
 
-  // Runs a single build step through the SAME chat path as a typed message: it
-  // shows up as Lovelace's message in the thread AND executes live in Unity via
-  // chat_completion's batch bridge. Returns true on success so the auto-runner
-  // knows whether to continue to the next step. Detects bridge failures the
-  // model reports back so a broken step visibly halts the demo.
-  const runOneStep = async (convoId, text) => {
+  // Runs a single build step directly against Unity via run_build_step — with
+  // ZERO Groq calls. The step's exact bridge actions and a canned narration are
+  // sent from buildSequence.js; the backend batches the actions, verifies the
+  // editor succeeded, and posts Lovelace's confirmation to the thread. Returns
+  // true only on verified success so the auto-runner advances one step at a time.
+  const runOneStep = async (convoId, step) => {
     try {
-      const res = await base44.functions.invoke("chat_completion", {
+      const res = await base44.functions.invoke("run_build_step", {
         conversation_id: convoId,
-        user_message: text,
+        actions: step.actions,
+        narration: step.narration,
       });
       await loadMessages(convoId);
-      const reply = (res?.data?.reply || res?.reply || "").toLowerCase();
-      // chat_completion always returns 200; a failed bridge run is surfaced in
-      // the reply text ("couldn't be reached", "failed"). Treat those as a stop.
-      const bridgeFailed =
-        /couldn't be reached|could not be reached|every step failed|bridge|not connected|connect unity/i.test(
-          reply
-        );
-      return !bridgeFailed;
+      const data = res?.data || res;
+      if (!data?.success) {
+        setThreadError(data?.error || "That step couldn't run in Unity.");
+        return false;
+      }
+      return true;
     } catch (err) {
       const msg = err?.response?.data?.error || err?.message || "Something went wrong.";
-      setThreadError(isGroqKeyError(msg) ? friendlyKeyMsg : msg);
+      setThreadError(msg);
       return false;
     }
   };
@@ -181,7 +180,7 @@ export default function AppWorkspace() {
       for (const step of steps) {
         if (abortRunRef.current) break;
         setAutoRun((prev) => ({ ...prev, current: step.n }));
-        const ok = await runOneStep(convoId, step.prompt);
+        const ok = await runOneStep(convoId, step);
         if (!ok) {
           setAutoRun({ active: false, current: step.n, failedAt: step.n });
           await loadConversations();
