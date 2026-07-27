@@ -7,6 +7,7 @@ import MessageList from "@/components/chat/MessageList";
 import ChatComposer from "@/components/chat/ChatComposer";
 import CouncilPanel from "@/components/chat/CouncilPanel";
 import EmptyState from "@/components/chat/EmptyState";
+import BuildPanel from "@/components/chat/BuildPanel";
 import { Hammer, Menu } from "lucide-react";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
@@ -329,11 +330,14 @@ export default function AppWorkspace() {
           {showEmpty ? (
             <EmptyState onPrefill={prefillComposer} />
           ) : (
-            <MessageList
-              messages={messages}
-              loading={loadingMsgs || sending}
-              error={threadError}
-            />
+            <div className="relative flex min-h-0 flex-1">
+              <MessageList
+                messages={messages}
+                loading={loadingMsgs || sending}
+                error={threadError}
+              />
+              <BuildPanel onSend={handleSend} disabled={sending} />
+            </div>
           )}
 
           {consult && !consult.collapsed && (
