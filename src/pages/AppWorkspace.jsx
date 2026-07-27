@@ -178,17 +178,33 @@ export default function AppWorkspace() {
     setSending(true);
     try {
       const convoId = await ensureConversation("Build & animate the Base44 logo");
-      for (const step of steps) {
-        if (abortRunRef.current) break;
-        setAutoRun((prev) => ({ ...prev, current: step.n }));
-        const ok = await runOneStep(convoId, step);
-        if (!ok) {
-          setAutoRun({ active: false, current: step.n, failedAt: step.n });
-          await loadConversations();
-          return;
-        }
-        // A short beat so each change is visible landing in the scene.
-        await new Promise((r) => setTimeout(r, 700));
+
+      // Demo speed matters: instead of one round-trip per step (each paying the
+      // editor's queue latency), the whole build ships as ONE batch — Unity
+      // assembles the scene in a single main-thread pass, seconds instead of
+      // minutes. Cleanup runs first as its own tolerant batch.
+      const scrub = steps.filter((s) => s.tolerant);
+      const build = steps.filter((s) => !s.tolerant);
+
+      if (scrub.length > 0 && !abortRunRef.current) {
+        setAutoRun((prev) => ({ ...prev, current: scrub[0].n }));
+        await runOneStep(convoId, {
+          ...scrub[0],
+          actions: scrub.flatMap((s) => s.actions),
+        });
+      }
+      if (abortRunRef.current) return;
+
+      const last = build[build.length - 1];
+      setAutoRun((prev) => ({ ...prev, current: last.n }));
+      const ok = await runOneStep(convoId, {
+        actions: build.flatMap((s) => s.actions),
+        narration:
+          build.map((s) => `✓ ${s.label} — ${s.narration}`).join("\n") +
+          "\n\nThe whole logo is built and the spin script is attached. Give Unity a second to compile, then press Play.",
+      });
+      if (!ok) {
+        setAutoRun({ active: false, current: last.n, failedAt: last.n });
       }
       await loadConversations();
     } finally {
