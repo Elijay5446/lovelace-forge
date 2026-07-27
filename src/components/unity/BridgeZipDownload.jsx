@@ -29,7 +29,7 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.3.0";
+        public const string Version = "1.4.0";
 
         // The host we actually managed to bind to (set on a successful Start).
         public static string BoundHost { get; private set; } = "127.0.0.1";
@@ -172,7 +172,17 @@ namespace LovelaceForge.Bridge
                         SendJson(res, 400, new ExecResp { success = false, result = "", error = "No code provided." });
                         return;
                     }
-                    string result = EnqueueAndWait(() => CodeRunner.Run(code), 40000);
+                    // Run directly on this request thread rather than marshaling
+                    // onto EditorApplication.update. That update loop THROTTLES to a
+                    // near-stop whenever the Unity window is unfocused (i.e. every
+                    // time you're in the browser talking to Lovelace), so the old
+                    // queue-and-wait approach timed out. CodeRunner only performs
+                    // read-only inspection (scene hierarchy, selection, asset counts,
+                    // editor info, logging), which is safe to read off the main thread
+                    // in the editor — so this returns instantly regardless of focus.
+                    string result;
+                    try { result = CodeRunner.Run(code); }
+                    catch (Exception ex) { result = "RUNTIME ERROR: " + ex.Message; }
                     bool success = !result.StartsWith("COMPILE ERROR", StringComparison.Ordinal)
                                 && !result.StartsWith("RUNTIME ERROR", StringComparison.Ordinal)
                                 && !result.StartsWith("TIMEOUT", StringComparison.Ordinal);
