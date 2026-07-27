@@ -4,7 +4,7 @@ import JSZip from "jszip";
 import { CODE_RUNNER_CS } from "@/components/unity/CodeRunnerDownload";
 
 // Keep in sync with BridgeServer.Version in BRIDGE_SERVER_CS below.
-const BRIDGE_VERSION = "1.7.0";
+const BRIDGE_VERSION = "1.8.0";
 
 // Builds the entire Forge Bridge package in-browser at click time from the
 // corrected source, so the download is always current — nothing hosted to keep
@@ -32,7 +32,7 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.7.0";
+        public const string Version = "1.8.0";
 
         // The host we actually managed to bind to (set on a successful Start).
         public static string BoundHost { get; private set; } = "127.0.0.1";
@@ -75,6 +75,29 @@ namespace LovelaceForge.Bridge
             };
             _pump.Start();
 
+            // Domain reloads (script recompiles, entering/exiting Play mode) tear
+            // down this AppDomain. If we don't release the listener FIRST, the OS
+            // can keep port 9876 held by the dead domain and the restart then
+            // fails to bind — which looks exactly like "the bridge disconnected".
+            // So: shut down cleanly before the reload, come straight back after.
+            AssemblyReloadEvents.beforeAssemblyReload += () =>
+            {
+                if (IsRunning)
+                {
+                    SessionState.SetBool("LovelaceBridgeWasRunning", true);
+                    Stop();
+                    SessionState.SetBool("LovelaceBridgeRunning", true);
+                }
+            };
+            AssemblyReloadEvents.afterAssemblyReload += () =>
+            {
+                if (SessionState.GetBool("LovelaceBridgeWasRunning", false))
+                {
+                    SessionState.SetBool("LovelaceBridgeWasRunning", false);
+                    EditorApplication.delayCall += () => Start();
+                }
+            };
+
             // Bring the bridge back up automatically after a domain reload.
             if (SessionState.GetBool("LovelaceBridgeRunning", false))
                 EditorApplication.delayCall += () => Start();
@@ -93,11 +116,31 @@ namespace LovelaceForge.Bridge
         {
             if (IsRunning) return;
 
-            // Try the most permissive hosts first. 127.0.0.1 usually needs no URL
-            // reservation on Windows; localhost and "+" are fallbacks. We stop at
-            // the first host that binds AND is actually listening.
-            string[] hosts = { "127.0.0.1", "localhost", "+" };
             LastError = "";
+
+            // Bind BOTH hostnames on one listener. HttpListener matches on the
+            // request's Host header, so a listener bound only to 127.0.0.1 answers
+            // "http://localhost:9876" requests with a 400 — and vice versa. Since
+            // cloudflared may forward either spelling, we accept both. If the OS
+            // refuses the combined reservation we fall back to one host at a time.
+            try
+            {
+                var both = new HttpListener();
+                both.Prefixes.Add($"http://127.0.0.1:{Port}/");
+                both.Prefixes.Add($"http://localhost:{Port}/");
+                both.Start();
+                _listener = both;
+                BoundHost = "127.0.0.1";
+                _cts = new CancellationTokenSource();
+                SessionState.SetBool("LovelaceBridgeRunning", true);
+                _ = ListenLoop(_cts.Token);
+                Debug.Log("[Lovelace Forge] Bridge listening on 127.0.0.1 and localhost:" + Port);
+                return;
+            }
+            catch (Exception e) { LastError = e.Message; }
+
+            // Fallback: whichever single host the OS will grant.
+            string[] hosts = { "127.0.0.1", "localhost", "+" };
             foreach (var host in hosts)
             {
                 try
