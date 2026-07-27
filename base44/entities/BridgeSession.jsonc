@@ -19,6 +19,11 @@
       ],
       "default": "disconnected"
     },
+    "pair_token": {
+      "type": "string",
+      "title": "Pair Token",
+      "description": "Secret token the local tunnel launcher uses to auto-announce its current tunnel URL"
+    },
     "unity_version": {
       "type": "string",
       "title": "Unity Version"
@@ -49,5 +54,6 @@
     "delete": {
       "created_by": "{{user.email}}"
     }
-  }
+  },
+  "required": []
 }
