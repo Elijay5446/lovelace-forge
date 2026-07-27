@@ -1,5 +1,6 @@
 import React from "react";
 import { ChevronDown, Sparkles } from "lucide-react";
+import LogoSequence from "@/components/chat/LogoSequence";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -68,6 +69,8 @@ export default function EmptyState({ onPrefill }) {
         <p className="mt-4 text-[11px] text-stone-600">
           Pick a request to drop it into the composer.
         </p>
+
+        <LogoSequence onPrefill={onPrefill} />
       </div>
     </div>
   );
