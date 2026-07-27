@@ -202,35 +202,6 @@ export default function ConnectUnity() {
           )}
         </motion.section>
 
-        {/* Prominent download + guide */}
-        <section ref={downloadSectionRef} className="mt-8 rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="font-display text-lg font-semibold text-stone-100">
-                Get the bridge package
-              </h2>
-              <p className="mt-1 text-sm text-stone-400">
-                One ZIP with the Unity script, launchers, and a README. New to this?
-                Follow the step-by-step guide.
-              </p>
-            </div>
-            <Link
-              to="/unity-setup"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-medium text-stone-200 transition hover:border-amber-500/40 hover:text-amber-100"
-            >
-              <BookOpen className="h-4 w-4" /> How to configure Unity
-            </Link>
-          </div>
-          <div className="mt-4">
-            <BridgeZipDownload />
-          </div>
-          <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.02] p-4 text-sm leading-relaxed text-stone-400">
-            <p><span className="font-semibold text-stone-200">Step 1:</span> Download and install the bridge package in your Unity editor (see Setup Guide)</p>
-            <p className="mt-1"><span className="font-semibold text-stone-200">Step 2:</span> Start the bridge script on your machine</p>
-            <p className="mt-1"><span className="font-semibold text-stone-200">Step 3:</span> Paste your tunnel URL below to connect</p>
-          </div>
-        </section>
-
         <div className="mt-12 space-y-10">
           {/* STEP 1 */}
           <Step number={1} title="Download & turn on the bridge inside Unity">
@@ -238,7 +209,7 @@ export default function ConnectUnity() {
               Download the bridge package, drop it into your Unity project, then
               start it so it listens for Lovelace on your machine.
             </p>
-            <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
+            <div ref={downloadSectionRef} className="mt-4 scroll-mt-24 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
               <BridgeZipDownload />
               <div className="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-stone-500">
                 <span>New to this? Follow the</span>
