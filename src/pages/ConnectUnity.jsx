@@ -23,7 +23,6 @@ import BridgeTroubleshooting from "@/components/unity/BridgeTroubleshooting";
 import LiveStatus from "@/components/unity/LiveStatus";
 import CommandConsole from "@/components/unity/CommandConsole";
 import BridgeZipDownload from "@/components/unity/BridgeZipDownload";
-import AutoLinkLauncher from "@/components/unity/AutoLinkLauncher";
 import BridgeStatusPanel from "@/components/unity/BridgeStatusPanel";
 import FirstRunModal from "@/components/unity/FirstRunModal";
 import { Link } from "react-router-dom";
@@ -255,9 +254,6 @@ export default function ConnectUnity() {
               the bridge on your computer. The launcher below installs everything
               and starts it for you.
             </p>
-            <div className="mt-4">
-              <AutoLinkLauncher />
-            </div>
             <div className="mt-4">
               <EasySetup />
             </div>
