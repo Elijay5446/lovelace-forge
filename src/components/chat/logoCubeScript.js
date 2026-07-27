@@ -33,20 +33,32 @@ public class Base44LogoCube : MonoBehaviour
     {
         var filter = GetComponent<MeshFilter>();
         if (filter == null) return;
-        if (filter.sharedMesh != null && filter.sharedMesh.name == "Base44LogoCubeMesh_v3") return;
+        if (filter.sharedMesh != null && filter.sharedMesh.name == "Base44LogoCubeMesh_v4") return;
 
         var temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
         var source = temp.GetComponent<MeshFilter>().sharedMesh;
         var mesh = Instantiate(source);
         DestroyImmediate(temp);
 
-        mesh.name = "Base44LogoCubeMesh_v3";
+        mesh.name = "Base44LogoCubeMesh_v4";
+        // Unity's built-in cube UVs aren't consistently oriented face to face, so
+        // rather than patching them, rebuild every face's UVs from its normal and
+        // vertex position. Result: the logo reads upright on all six faces.
         var normals = mesh.normals;
-        var uv = mesh.uv;
-        for (int i = 0; i < uv.Length && i < normals.Length; i++)
+        var verts = mesh.vertices;
+        var uv = new Vector2[verts.Length];
+        for (int i = 0; i < verts.Length; i++)
         {
-            if (normals[i].y < -0.5f) uv[i] = new Vector2(1f - uv[i].x, uv[i].y);
-            else uv[i] = new Vector2(uv[i].x, 1f - uv[i].y);
+            Vector3 n = normals[i];
+            Vector3 p = verts[i];
+            if (n.y > 0.5f) uv[i] = new Vector2(p.x + 0.5f, 1f - (p.z + 0.5f));
+            else if (n.y < -0.5f) uv[i] = new Vector2(p.x + 0.5f, p.z + 0.5f);
+            else
+            {
+                Vector3 right = Vector3.Cross(Vector3.up, n);
+                float u = Vector3.Dot(p, right) + 0.5f;
+                uv[i] = new Vector2(u, p.y + 0.5f);
+            }
         }
         mesh.uv = uv;
         filter.sharedMesh = mesh;
