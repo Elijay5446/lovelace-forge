@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown, Sparkles, Wand2 } from "lucide-react";
 import LogoSequence from "@/components/chat/LogoSequence";
 import {
   DropdownMenu,
@@ -21,7 +21,7 @@ const TOP_REQUESTS = [
   "Build an inventory system with drag-and-drop UI",
 ];
 
-export default function EmptyState({ onPrefill }) {
+export default function EmptyState({ onPrefill, onRunDemo }) {
   return (
     <div className="forge-atmosphere relative flex flex-1 items-center justify-center overflow-y-auto px-6 py-10">
       <div className="w-full max-w-xl text-center">
@@ -69,6 +69,25 @@ export default function EmptyState({ onPrefill }) {
         <p className="mt-4 text-[11px] text-stone-600">
           Pick a request to drop it into the composer.
         </p>
+
+        {onRunDemo && (
+          <div className="mt-8">
+            <button
+              onClick={onRunDemo}
+              className="council-glow group inline-flex items-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_28px_rgba(37,99,235,0.4)] transition hover:from-blue-500 hover:to-cyan-400 hover:shadow-[0_0_44px_rgba(37,99,235,0.65)]"
+            >
+              <Wand2 className="h-4 w-4" />
+              Build &amp; Animate the Base44 Logo
+              <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                Live demo
+              </span>
+            </button>
+            <p className="mx-auto mt-3 max-w-sm text-[11px] leading-relaxed text-stone-500">
+              One click. Watch the scene assemble itself in Unity — each step
+              narrated here and executed live. Connect Unity first.
+            </p>
+          </div>
+        )}
 
         <LogoSequence onPrefill={onPrefill} />
       </div>

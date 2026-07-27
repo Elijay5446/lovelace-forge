@@ -8,6 +8,7 @@ import ChatComposer from "@/components/chat/ChatComposer";
 import CouncilPanel from "@/components/chat/CouncilPanel";
 import EmptyState from "@/components/chat/EmptyState";
 import BuildPanel from "@/components/chat/BuildPanel";
+import { BUILD_STEPS } from "@/components/chat/buildSequence";
 import { Hammer, Menu } from "lucide-react";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
@@ -26,8 +27,12 @@ export default function AppWorkspace() {
   const [mobileNav, setMobileNav] = useState(false);
   const [consult, setConsult] = useState(null);
   const [composerText, setComposerText] = useState("");
+  // Auto-run state for the one-click "Build & Animate the Base44 logo" demo:
+  // which step is executing (1-based), and a flag so the runner can be stopped.
+  const [autoRun, setAutoRun] = useState({ active: false, current: 0, failedAt: null });
   const composerRef = useRef(null);
   const pollRef = useRef(null);
+  const abortRunRef = useRef(false);
 
   // Prefill the composer when the Forge Guide overlay launches the user here
   // with a chosen prompt (?q=...).
@@ -132,6 +137,70 @@ export default function AppWorkspace() {
     } finally {
       setSending(false);
     }
+  };
+
+  // Runs a single build step through the SAME chat path as a typed message: it
+  // shows up as Lovelace's message in the thread AND executes live in Unity via
+  // chat_completion's batch bridge. Returns true on success so the auto-runner
+  // knows whether to continue to the next step. Detects bridge failures the
+  // model reports back so a broken step visibly halts the demo.
+  const runOneStep = async (convoId, text) => {
+    try {
+      const res = await base44.functions.invoke("chat_completion", {
+        conversation_id: convoId,
+        user_message: text,
+      });
+      await loadMessages(convoId);
+      const reply = (res?.data?.reply || res?.reply || "").toLowerCase();
+      // chat_completion always returns 200; a failed bridge run is surfaced in
+      // the reply text ("couldn't be reached", "failed"). Treat those as a stop.
+      const bridgeFailed =
+        /couldn't be reached|could not be reached|every step failed|bridge|not connected|connect unity/i.test(
+          reply
+        );
+      return !bridgeFailed;
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || "Something went wrong.";
+      setThreadError(isGroqKeyError(msg) ? friendlyKeyMsg : msg);
+      return false;
+    }
+  };
+
+  // The award-winning moment: one click runs the ENTIRE Base44 logo build. Each
+  // step appears in the chat as Lovelace narrates and executes it in Unity, in
+  // order, pausing between steps so the scene visibly assembles itself. Stops
+  // gracefully at the first failure and reports exactly where.
+  const runBuildSequence = async (steps) => {
+    if (autoRun.active || sending) return;
+    abortRunRef.current = false;
+    setThreadError("");
+    setAutoRun({ active: true, current: 0, failedAt: null });
+    setSending(true);
+    try {
+      const convoId = await ensureConversation("Build & animate the Base44 logo");
+      for (const step of steps) {
+        if (abortRunRef.current) break;
+        setAutoRun((prev) => ({ ...prev, current: step.n }));
+        const ok = await runOneStep(convoId, step.prompt);
+        if (!ok) {
+          setAutoRun({ active: false, current: step.n, failedAt: step.n });
+          await loadConversations();
+          return;
+        }
+        // A short beat so each change is visible landing in the scene.
+        await new Promise((r) => setTimeout(r, 700));
+      }
+      await loadConversations();
+    } finally {
+      setSending(false);
+      setAutoRun((prev) =>
+        prev.failedAt ? prev : { active: false, current: 0, failedAt: null }
+      );
+    }
+  };
+
+  const stopBuildSequence = () => {
+    abortRunRef.current = true;
   };
 
   const startPolling = (sessionId) => {
@@ -328,7 +397,10 @@ export default function AppWorkspace() {
           </header>
 
           {showEmpty ? (
-            <EmptyState onPrefill={prefillComposer} />
+            <EmptyState
+              onPrefill={prefillComposer}
+              onRunDemo={() => runBuildSequence(BUILD_STEPS)}
+            />
           ) : (
             <div className="relative flex min-h-0 flex-1">
               <MessageList
@@ -336,7 +408,13 @@ export default function AppWorkspace() {
                 loading={loadingMsgs || sending}
                 error={threadError}
               />
-              <BuildPanel onSend={handleSend} disabled={sending} />
+              <BuildPanel
+                onSend={handleSend}
+                onRunAll={() => runBuildSequence(BUILD_STEPS)}
+                onStop={stopBuildSequence}
+                autoRun={autoRun}
+                disabled={sending && !autoRun.active}
+              />
             </div>
           )}
 
