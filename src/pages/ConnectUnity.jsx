@@ -233,11 +233,21 @@ export default function ConnectUnity() {
 
         <div className="mt-12 space-y-10">
           {/* STEP 1 */}
-          <Step number={1} title="Turn on the bridge inside Unity">
+          <Step number={1} title="Download & turn on the bridge inside Unity">
             <p className="text-sm leading-relaxed text-stone-400">
-              You already installed the Unity bridge package. Now start it so it
-              listens for Lovelace on your machine.
+              Download the bridge package, drop it into your Unity project, then
+              start it so it listens for Lovelace on your machine.
             </p>
+            <div className="mt-4 rounded-lg border border-amber-500/20 bg-amber-500/[0.04] p-4">
+              <BridgeZipDownload />
+              <div className="mt-3 flex flex-wrap items-center gap-x-1.5 text-xs text-stone-500">
+                <span>New to this? Follow the</span>
+                <Link to="/unity-setup" className="inline-flex items-center gap-1 font-medium text-amber-300 hover:text-amber-200">
+                  <BookOpen className="h-3.5 w-3.5" /> step-by-step setup guide
+                </Link>
+                <span>for install help.</span>
+              </div>
+            </div>
             <ol className="mt-4 space-y-2.5 text-sm text-stone-400">
               <li className="flex gap-2.5">
                 <Num n={1} />
