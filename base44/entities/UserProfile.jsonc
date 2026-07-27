@@ -7,6 +7,11 @@
       "title": "Display Name",
       "description": "Name shown across the app"
     },
+    "groq_api_key": {
+      "type": "string",
+      "title": "Groq API Key",
+      "description": "The user's own Groq API key. Used for their chat and council calls so each person draws on their own Groq quota."
+    },
     "preferences": {
       "type": "object",
       "title": "Preferences",
@@ -29,5 +34,6 @@
     "delete": {
       "created_by": "{{user.email}}"
     }
-  }
+  },
+  "required": []
 }

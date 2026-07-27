@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
+import { resolveGroqKey } from '../../shared/groq.ts';
 
 const COUNCIL_SYSTEM =
   "You are one expert voice on a council convened by Lovelace Forge, an AI game-development studio for Unity creators. Answer the user's question directly and concisely with your best independent technical judgment.";
@@ -28,10 +29,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    const groqKey = Deno.env.get("GROQ_API_KEY");
+    // Prefer the user's own Groq key (their own quota), fall back to shared.
+    const groqKey = await resolveGroqKey(base44);
     if (!groqKey) {
       return Response.json(
-        { error: "Groq API key is not configured. Set GROQ_API_KEY in the app secrets." },
+        { error: "No Groq API key available. Add your own key in Settings, or ask your admin to set one." },
         { status: 500 }
       );
     }
@@ -91,9 +93,13 @@ Deno.serve(async (req) => {
 
         if (!res.ok) {
           const errText = await res.text().catch(() => "");
+          const content =
+            res.status === 429
+              ? "Groq's daily limit was reached for this key. Add your own Groq API key in Settings to consult on your own quota."
+              : `Provider error (${res.status}): ${errText}`;
           await base44.entities.ModelResponse.update(mrId, {
             status: "failed",
-            content: `Provider error (${res.status}): ${errText}`,
+            content,
             latency_ms: Date.now() - started,
           });
           return;

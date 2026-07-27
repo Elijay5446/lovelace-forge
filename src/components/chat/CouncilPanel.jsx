@@ -30,9 +30,13 @@ export default function CouncilPanel({ consult, onSynthesize, onClose }) {
 
         <div className="max-h-[55vh] overflow-y-auto p-4">
           {consult.error ? (
-            <p className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
-              {consult.error}
-            </p>
+            <div className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-3 text-sm text-red-300">
+              <p>{consult.error}</p>
+              <p className="mt-1.5 text-xs text-stone-400">
+                Add your own Groq key from the sidebar (Groq API Key) to run the
+                council on your personal quota.
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {responses.map((r) => (

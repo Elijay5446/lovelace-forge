@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Plus, LogOut, Cable, MessageSquare } from "lucide-react";
+import { Plus, LogOut, Cable, MessageSquare, KeyRound } from "lucide-react";
 import { ConversationListSkeleton } from "@/components/Skeletons";
 import ConversationSearch from "@/components/chat/ConversationSearch";
 import ConversationRow from "@/components/chat/ConversationRow";
+import GroqKeyDialog from "@/components/settings/GroqKeyDialog";
 
 export default function ChatSidebar({
   conversations,
@@ -20,6 +21,7 @@ export default function ChatSidebar({
 }) {
   const { pathname } = useLocation();
   const [query, setQuery] = useState("");
+  const [keyOpen, setKeyOpen] = useState(false);
   const q = query.trim().toLowerCase();
   const filtered = q
     ? conversations.filter(
@@ -94,7 +96,15 @@ export default function ChatSidebar({
         >
           <Cable className="h-4 w-4" /> Connect Unity
         </Link>
+        <button
+          onClick={() => setKeyOpen(true)}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-stone-400 transition hover:bg-white/5 hover:text-stone-200"
+        >
+          <KeyRound className="h-4 w-4" /> Groq API Key
+        </button>
       </nav>
+
+      <GroqKeyDialog open={keyOpen} onOpenChange={setKeyOpen} />
 
       <div className="flex items-center justify-between border-t border-white/5 p-3">
         <span className="truncate text-xs text-stone-500">{user?.email}</span>

@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
 import { GENRE_PLAYBOOKS } from '../../shared/genreKnowledge.ts';
 import { getBridge, runOnBridge } from '../../shared/bridge.ts';
+import { resolveGroqKey } from '../../shared/groq.ts';
 
 const SYSTEM_PROMPT =
   "You are Lovelace Forge — a warm, brilliant AI companion and senior AAA game-development engineer with PhD-level mastery of Unity (all modern versions). You help developers across every discipline of game development: gameplay systems and architecture, C# scripting, physics, animation, shaders and rendering, UI, audio, AI behavior, optimization, and shipping. You adapt to whatever genre and frameworks the developer's project uses. You are encouraging and human in tone but precise and rigorous in engineering. Born from community, built for humanity. When unsure on a hard technical question, you can suggest 'consulting the council' (a multi-model second opinion).\n" +
@@ -188,10 +189,12 @@ Deno.serve(async (req) => {
     );
     const ordered = [...(recent || [])].reverse();
 
-    const groqKey = Deno.env.get("GROQ_API_KEY");
+    // Prefer the user's own Groq key (their own quota) and fall back to the
+    // shared app key. This is what lets each user carry their own daily limit.
+    const groqKey = await resolveGroqKey(base44);
     if (!groqKey) {
       return Response.json(
-        { error: "Groq API key is not configured. Set GROQ_API_KEY in the app secrets." },
+        { error: "No Groq API key available. Add your own key in Settings, or ask your admin to set one." },
         { status: 500 }
       );
     }
@@ -289,6 +292,16 @@ Deno.serve(async (req) => {
 
     if (!groqRes.ok) {
       const errText = await groqRes.text().catch(() => "");
+      if (groqRes.status === 429) {
+        return Response.json(
+          {
+            error:
+              "Groq's daily limit was reached for this key. Add your own Groq API key in Settings to keep going on your own quota.",
+            rateLimited: true,
+          },
+          { status: 429 }
+        );
+      }
       return Response.json(
         { error: `Groq API error (${groqRes.status}): ${errText}` },
         { status: 502 }
