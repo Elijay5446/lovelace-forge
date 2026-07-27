@@ -10,6 +10,7 @@ import EmptyState from "@/components/chat/EmptyState";
 import BuildPanel from "@/components/chat/BuildPanel";
 import { BUILD_STEPS } from "@/components/chat/buildSequence";
 import { waitForObject, attachScript } from "@/components/chat/verifyBuild";
+import UnityStatusLed from "@/components/chat/UnityStatusLed";
 import { Hammer, Menu } from "lucide-react";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
@@ -457,6 +458,7 @@ export default function AppWorkspace() {
                 {activeConvo?.title || "Lovelace Forge"}
               </span>
             </div>
+            <UnityStatusLed />
           </header>
 
           {showEmpty ? (
