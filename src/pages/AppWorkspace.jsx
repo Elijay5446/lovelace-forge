@@ -9,7 +9,7 @@ import CouncilPanel from "@/components/chat/CouncilPanel";
 import EmptyState from "@/components/chat/EmptyState";
 import BuildPanel from "@/components/chat/BuildPanel";
 import { BUILD_STEPS } from "@/components/chat/buildSequence";
-import { waitForObject } from "@/components/chat/verifyBuild";
+import { waitForObject, attachScript } from "@/components/chat/verifyBuild";
 import { Hammer, Menu } from "lucide-react";
 
 const isGroqKeyError = (msg) => /groq api key|GROQ_API_KEY/i.test(msg || "");
@@ -210,17 +210,48 @@ export default function AppWorkspace() {
       }
       if (abortRunRef.current) return;
 
-      const last = build[build.length - 1];
-      setAutoRun((prev) => ({ ...prev, current: last.n }));
+      // Scene assembly ships as one batch. The C# behaviour is separate: writing
+      // it recompiles the project (dropping anything still queued), so it's
+      // written first and only attached once Unity has actually compiled it.
+      const scene = build.filter((s) => !s.phase);
+      const createStep = build.find((s) => s.phase === "script-create");
+      const attachStep = build.find((s) => s.phase === "script-attach");
+      const last = attachStep || scene[scene.length - 1];
+
+      setAutoRun((prev) => ({ ...prev, current: scene[scene.length - 1].n }));
       const ok = await runOneStep(convoId, {
-        actions: build.flatMap((s) => s.actions),
+        actions: scene.flatMap((s) => s.actions),
         verify: "Base44Logo",
-        narration:
-          build.map((s) => `✓ ${s.label} — ${s.narration}`).join("\n") +
-          "\n\nThe whole logo is built and the spin script is attached. Give Unity a second to compile, then press Play.",
+        narration: scene.map((s) => `✓ ${s.label} — ${s.narration}`).join("\n"),
       });
       if (!ok) {
-        setAutoRun({ active: false, current: last.n, failedAt: last.n });
+        setAutoRun({ active: false, current: scene[scene.length - 1].n, failedAt: scene[scene.length - 1].n });
+        return;
+      }
+      if (abortRunRef.current) return;
+
+      if (createStep) {
+        setAutoRun((prev) => ({ ...prev, current: createStep.n }));
+        await runOneStep(convoId, { ...createStep, tolerant: true });
+      }
+      if (abortRunRef.current) return;
+
+      if (attachStep) {
+        setAutoRun((prev) => ({ ...prev, current: attachStep.n }));
+        const attached = await attachScript(
+          attachStep.attach.target,
+          attachStep.attach.script
+        );
+        await base44.entities.Message.create({
+          conversation_id: convoId,
+          role: "assistant",
+          content: attached
+            ? attachStep.narration
+            : "Unity is still compiling the logo behaviour. Once the spinner in the bottom-right finishes, ask me to attach Base44LogoCube to Base44Logo.",
+          model_source: "lovelace-forge/demo",
+        });
+        await loadMessages(convoId);
+        if (!attached) setAutoRun({ active: false, current: last.n, failedAt: last.n });
       }
       await loadConversations();
     } finally {

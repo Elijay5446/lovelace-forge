@@ -88,17 +88,31 @@ export const BUILD_STEPS = [
   },
   {
     n: 6,
-    label: "Skin it, spin it, make it glow",
+    label: "Write the logo behaviour",
+    // Writing the script triggers a recompile + domain reload in Unity, so the
+    // attach CANNOT ride along in the same batch — it gets its own step below.
+    phase: "script-create",
     prompt:
-      "Write a C# MonoBehaviour named 'Base44LogoCube' that downloads the Base44 logo, applies it to every face of the cube, spins it 40 degrees per second, and pulses its emission — then attach it to Base44Logo.",
+      "Write a C# MonoBehaviour named 'Base44LogoCube' that downloads the Base44 logo, applies it to every face of the cube, spins it 40 degrees per second, and pulses its emission.",
     narration:
-      "Base44 logo mapped onto all six faces, spinning at 40°/sec with a pulsing orange glow. Give Unity a moment to compile — it animates right in the Scene view.",
+      "Wrote Base44LogoCube.cs into your project — Unity is compiling it now.",
     actions: [
       {
         kind: "write",
         tool: "script.create",
         args: { script: "Base44LogoCube", code: LOGO_CUBE_CS },
       },
+    ],
+  },
+  {
+    n: 7,
+    label: "Skin it, spin it, make it glow",
+    phase: "script-attach",
+    attach: { target: "Base44Logo", script: "Base44LogoCube" },
+    prompt: "Attach Base44LogoCube to Base44Logo once Unity finishes compiling.",
+    narration:
+      "Base44 logo mapped onto all six faces, spinning at 40°/sec with a pulsing orange glow — it animates right in the Scene view.",
+    actions: [
       { kind: "write", tool: "script.attach", args: { target: "Base44Logo", script: "Base44LogoCube" } },
     ],
   },
