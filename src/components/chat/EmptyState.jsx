@@ -23,7 +23,7 @@ const TOP_REQUESTS = [
 
 export default function EmptyState({ onPrefill }) {
   return (
-    <div className="forge-atmosphere relative flex flex-1 items-center justify-center px-6 py-10">
+    <div className="forge-atmosphere relative flex flex-1 items-center justify-center overflow-y-auto px-6 py-10">
       <div className="w-full max-w-xl text-center">
         <h1 className="forge-title font-display text-3xl font-bold tracking-[0.04em] text-[#FFF6E0]">
           Welcome to the Forge
