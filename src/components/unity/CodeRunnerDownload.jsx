@@ -71,6 +71,7 @@ namespace LovelaceForge.Bridge
                 case "script.attach":
                 case "scene.save":
                 case "editor.play":
+                case "batch":
                 case "log":
                     return true;
                 default:
@@ -94,6 +95,11 @@ namespace LovelaceForge.Bridge
         }
 
         [Serializable] private class Envelope { public string tool; public string args; }
+        // A batch envelope carries a list of already-serialized step envelopes,
+        // each a JSON string of the form {"tool":"...","args":"{...}"}. Running
+        // them all in ONE bridge call means a single main-thread pass instead of
+        // one slow HTTP round-trip per step — the key to fast multi-step edits.
+        [Serializable] private class BatchEnvelope { public string tool; public string[] steps; }
         [Serializable] private class Args
         {
             public string type;      // primitive: cube, sphere, capsule, plane, cylinder, quad
@@ -117,6 +123,29 @@ namespace LovelaceForge.Bridge
                 return "ERROR: empty command.";
 
             code = code.Trim();
+
+            // Batch form: { "tool": "batch", "steps": [ "<step json>", ... ] }.
+            // Each step is itself a serialized envelope; we run them in order in
+            // this single main-thread call and stitch the results together.
+            if (code.StartsWith("{") && code.Contains("\\"steps\\""))
+            {
+                BatchEnvelope batch = null;
+                try { batch = JsonUtility.FromJson<BatchEnvelope>(code); }
+                catch { batch = null; }
+                if (batch != null && (batch.tool == null || batch.tool.Trim().ToLowerInvariant() == "batch")
+                    && batch.steps != null)
+                {
+                    var sb = new StringBuilder();
+                    for (int i = 0; i < batch.steps.Length; i++)
+                    {
+                        string stepResult;
+                        try { stepResult = Run(batch.steps[i]); }
+                        catch (Exception e) { stepResult = "RUNTIME ERROR: " + e.Message; }
+                        sb.AppendLine("[" + (i + 1) + "] " + stepResult);
+                    }
+                    return sb.ToString().TrimEnd();
+                }
+            }
 
             // JSON envelope form: { "tool": "...", "args": "{...}" }
             if (code.StartsWith("{"))

@@ -205,22 +205,40 @@ Deno.serve(async (req) => {
     if (actions.length > 0) {
       const bridge = await getBridge(base44).catch(() => null);
       if (bridge?.tunnel_url && bridge.status === "connected") {
-        // Run every action in order against the live editor, collecting a
-        // step-by-step log. A later action (e.g. color) depends on an earlier one
-        // (create), so sequencing matters — we keep going even if one step fails
-        // and report the whole run truthfully.
+        // Multi-step edits are the slow, fragile case: N writes = N HTTP round-
+        // trips, each blocking on Unity's background-throttled main-thread queue.
+        // When the turn is ALL writes and there's more than one, bundle them into
+        // a SINGLE `batch` envelope so the bridge runs them back-to-back in one
+        // main-thread pass — one round-trip instead of many. Reads stay individual
+        // (they're fast and run off-thread), so any turn containing a read falls
+        // back to the sequential path.
+        const anyReads = actions.some((a) => a.kind === "read");
         const steps: string[] = [];
-        let anyReads = false;
         let anySuccess = false;
-        for (const action of actions) {
-          const label = action.kind === "read" ? action.command : action.tool;
-          if (action.kind === "read") anyReads = true;
-          const out = await runOnBridge(bridge.tunnel_url, actionToCode(action));
+
+        if (!anyReads && actions.length > 1) {
+          const batchCode = JSON.stringify({
+            tool: "batch",
+            steps: actions.map((a) => actionToCode(a)),
+          });
+          const out = await runOnBridge(bridge.tunnel_url, batchCode);
           if (out?.success) {
             anySuccess = true;
-            steps.push(`✓ \`${label}\` → ${String(out.result ?? "ok").slice(0, 500)}`);
+            steps.push(String(out.result ?? "ok").slice(0, 3000));
           } else {
-            steps.push(`✗ \`${label}\` FAILED → ${out?.error || "unknown error"}`);
+            steps.push(`✗ batch FAILED → ${out?.error || "unknown error"}`);
+          }
+        } else {
+          // Single action, or a turn that reads the scene — run in order.
+          for (const action of actions) {
+            const label = action.kind === "read" ? action.command : action.tool;
+            const out = await runOnBridge(bridge.tunnel_url, actionToCode(action));
+            if (out?.success) {
+              anySuccess = true;
+              steps.push(`✓ \`${label}\` → ${String(out.result ?? "ok").slice(0, 500)}`);
+            } else {
+              steps.push(`✗ \`${label}\` FAILED → ${out?.error || "unknown error"}`);
+            }
           }
         }
         const log = steps.join("\n");

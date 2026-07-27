@@ -4,7 +4,7 @@ import JSZip from "jszip";
 import { CODE_RUNNER_CS } from "@/components/unity/CodeRunnerDownload";
 
 // Keep in sync with BridgeServer.Version in BRIDGE_SERVER_CS below.
-const BRIDGE_VERSION = "1.6.0";
+const BRIDGE_VERSION = "1.7.0";
 
 // Builds the entire Forge Bridge package in-browser at click time from the
 // corrected source, so the download is always current — nothing hosted to keep
@@ -32,7 +32,7 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.6.0";
+        public const string Version = "1.7.0";
 
         // The host we actually managed to bind to (set on a successful Start).
         public static string BoundHost { get; private set; } = "127.0.0.1";
@@ -195,7 +195,7 @@ namespace LovelaceForge.Bridge
                     try
                     {
                         if (CodeRunner.IsWriteCommand(code))
-                            result = EnqueueAndWait(() => CodeRunner.Run(code), 40000);
+                            result = EnqueueAndWait(() => CodeRunner.Run(code), 90000);
                         else
                             result = CodeRunner.Run(code);
                     }

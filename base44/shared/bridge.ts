@@ -24,7 +24,7 @@ async function fetchWithTimeout(url: string, opts: RequestInit, timeoutMs: numbe
   }
 }
 
-const EXECUTE_TIMEOUT_MS = 40000;
+const EXECUTE_TIMEOUT_MS = 100000;
 
 // Loads the authenticated user's most recent bridge session (RLS-scoped by the
 // caller's client). Returns null when nothing is configured.
