@@ -47,8 +47,8 @@ public class Base44LogoText : MonoBehaviour
         mesh.text = "BASE44";
         mesh.fontSize = 96;
         mesh.characterSize = 0.16f;
-        mesh.anchor = TextAnchor.MiddleLeft;
-        mesh.alignment = TextAlignment.Left;
+        mesh.anchor = TextAnchor.MiddleCenter;
+        mesh.alignment = TextAlignment.Center;
         mesh.color = new Color(1f, 0.42f, 0f);
 
         if (mesh.font == null)
@@ -74,6 +74,22 @@ public class Base44LogoText : MonoBehaviour
 
         float bob = Mathf.Sin(Time.realtimeSinceStartup * 1.4f) * 0.08f * bobScale;
         textTransform.localPosition = basePosition + new Vector3(0f, bob, 0f);
+
+        // Billboard: always face the viewing camera so the text can never read
+        // backwards/mirrored, no matter which side the Scene view orbits to.
+        Camera cam = null;
+#if UNITY_EDITOR
+        if (UnityEditor.SceneView.lastActiveSceneView != null)
+            cam = UnityEditor.SceneView.lastActiveSceneView.camera;
+#endif
+        if (cam == null) cam = Camera.main;
+        if (cam != null)
+        {
+            Vector3 toCam = textTransform.position - cam.transform.position;
+            toCam.y = 0f; // yaw only, keeps the text upright
+            if (toCam.sqrMagnitude > 0.001f)
+                textTransform.rotation = Quaternion.LookRotation(toCam);
+        }
     }
 }
 `;

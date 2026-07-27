@@ -12,7 +12,7 @@ public class Base44LogoCube : MonoBehaviour
     public string logoUrl = "https://media.base44.com/images/public/6a5fa4e30616b868abb9e3db/6caabebae_Base44logo.png";
     public float degreesPerSecond = 40f;
     public Color glowColor = new Color(1f, 0.42f, 0f);
-    public float glowStrength = 1.6f;
+    public float glowStrength = 2.4f;
 
     private UnityWebRequest _request;
     private Material _material;
