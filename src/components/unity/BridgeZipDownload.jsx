@@ -3,6 +3,9 @@ import { Download, Loader2 } from "lucide-react";
 import JSZip from "jszip";
 import { CODE_RUNNER_CS } from "@/components/unity/CodeRunnerDownload";
 
+// Keep in sync with BridgeServer.Version in BRIDGE_SERVER_CS below.
+const BRIDGE_VERSION = "1.6.0";
+
 // Builds the entire Forge Bridge package in-browser at click time from the
 // corrected source, so the download is always current — nothing hosted to keep
 // in sync. Folder layout matches the README: LovelaceForgeBridge/Editor/*.cs.
@@ -527,7 +530,7 @@ export default function BridgeZipDownload({ className = "" }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "LovelaceForgeBridge.zip";
+      a.download = `LovelaceForgeBridge-v${BRIDGE_VERSION}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -544,7 +547,7 @@ export default function BridgeZipDownload({ className = "" }) {
       className={`inline-flex items-center gap-2 rounded-lg border-0 bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(245,158,11,0.28)] transition hover:from-amber-400 hover:to-orange-500 hover:shadow-[0_0_34px_rgba(245,158,11,0.45)] disabled:opacity-60 ${className}`}
     >
       {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {building ? "Building zip…" : "⬇ Download Forge Bridge (.zip)"}
+      {building ? "Building zip…" : `⬇ Download Forge Bridge v${BRIDGE_VERSION} (.zip)`}
     </button>
   );
 }
