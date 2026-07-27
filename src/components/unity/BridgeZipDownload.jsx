@@ -29,7 +29,7 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.4.0";
+        public const string Version = "1.5.0";
 
         // The host we actually managed to bind to (set on a successful Start).
         public static string BoundHost { get; private set; } = "127.0.0.1";
@@ -49,18 +49,25 @@ namespace LovelaceForge.Bridge
         {
             EditorApplication.update += DrainMainQueue;
 
-            // Focus-proof ticking. EditorApplication.update (and delayCall) THROTTLE
-            // hard — often to a near stop — when the Unity window is not focused,
-            // e.g. while you're in the browser sending a chat. That left /execute
-            // jobs sitting in the queue until they timed out. The fix is to force
-            // the editor to keep running its loop in the background: this timer runs
-            // on a worker thread and, whenever work is queued, pokes the editor's
-            // player loop so DrainMainQueue actually gets to run.
-            _pump = new System.Timers.Timer(50) { AutoReset = true };
+            // Focus-proof ticking for WRITE commands. Reads run directly on the
+            // request thread, but writes (creating objects, adding components,
+            // writing scripts) MUST run on Unity's main thread — and that main
+            // loop THROTTLES to a near-stop whenever the Unity window is unfocused
+            // (which it always is while you're in the browser talking to Lovelace).
+            // A single-shot poke wasn't enough, so this worker-thread timer fires
+            // fast and, whenever a main-thread job is queued, aggressively forces
+            // the editor's player loop to tick until the queue drains.
+            _pump = new System.Timers.Timer(25) { AutoReset = true };
             _pump.Elapsed += (_, __) =>
             {
                 if (_mainQueue.IsEmpty) return;
-                try { EditorApplication.QueuePlayerLoopUpdate(); }
+                try
+                {
+                    // Force several ticks per interval so a queued write actually
+                    // gets processed promptly even with Unity in the background.
+                    for (int i = 0; i < 4 && !_mainQueue.IsEmpty; i++)
+                        EditorApplication.QueuePlayerLoopUpdate();
+                }
                 catch { /* editor not ready yet */ }
             };
             _pump.Start();
@@ -172,16 +179,23 @@ namespace LovelaceForge.Bridge
                         SendJson(res, 400, new ExecResp { success = false, result = "", error = "No code provided." });
                         return;
                     }
-                    // Run directly on this request thread rather than marshaling
-                    // onto EditorApplication.update. That update loop THROTTLES to a
-                    // near-stop whenever the Unity window is unfocused (i.e. every
-                    // time you're in the browser talking to Lovelace), so the old
-                    // queue-and-wait approach timed out. CodeRunner only performs
-                    // read-only inspection (scene hierarchy, selection, asset counts,
-                    // editor info, logging), which is safe to read off the main thread
-                    // in the editor — so this returns instantly regardless of focus.
+                    // READ commands (scene inspection) are safe off the main
+                    // thread, so they run directly on this request thread and return
+                    // instantly regardless of window focus. WRITE commands (create
+                    // object, add component, write script) mutate the scene/project
+                    // and MUST run on Unity's main thread — those are marshaled onto
+                    // the queue, which the background pump force-ticks so they still
+                    // run while Unity is unfocused. This gives us fast reads AND
+                    // reliable writes without ever depending on the editor being
+                    // in the foreground.
                     string result;
-                    try { result = CodeRunner.Run(code); }
+                    try
+                    {
+                        if (CodeRunner.IsWriteCommand(code))
+                            result = EnqueueAndWait(() => CodeRunner.Run(code), 40000);
+                        else
+                            result = CodeRunner.Run(code);
+                    }
                     catch (Exception ex) { result = "RUNTIME ERROR: " + ex.Message; }
                     bool success = !result.StartsWith("COMPILE ERROR", StringComparison.Ordinal)
                                 && !result.StartsWith("RUNTIME ERROR", StringComparison.Ordinal)

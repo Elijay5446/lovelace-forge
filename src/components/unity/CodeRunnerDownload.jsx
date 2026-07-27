@@ -11,6 +11,7 @@ import { FileCode2 } from "lucide-react";
 // ZERO project-level dependencies, so it always compiles on any Unity version and
 // the Tools menu always shows up.
 export const CODE_RUNNER_CS = `using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
@@ -26,24 +27,89 @@ namespace LovelaceForge.Bridge
     /// Roslyn / Microsoft.CodeAnalysis reference — so this file always compiles
     /// and the Tools ▸ Lovelace Forge menu always appears.
     ///
-    /// The bridge passes a command line as the "code" string. Supported commands:
-    ///   ping
-    ///   scene.info
-    ///   scene.hierarchy
-    ///   selection.info
-    ///   assets.count
-    ///   editor.info
-    ///   log <message>
-    /// Anything else returns a friendly "unknown command" listing the options.
+    /// READ commands (safe off the main thread, run instantly regardless of focus):
+    ///   ping · scene.info · scene.hierarchy · selection.info · assets.count · editor.info
+    /// WRITE commands (mutate the scene/project — MUST run on the main thread; the
+    /// bridge marshals these onto a force-ticked queue):
+    ///   object.create · component.add · object.rename · object.delete
+    ///   object.move · script.create · script.attach
+    ///
+    /// Commands arrive either as a bare word ("scene.hierarchy") or as a JSON
+    /// envelope { "tool": "object.create", "args": { ... } } sent by Lovelace.
     /// </summary>
     public static class CodeRunner
     {
+        // Write commands touch the scene/AssetDatabase and therefore require the
+        // Unity main thread. The bridge checks this to decide how to dispatch.
+        public static bool IsWriteCommand(string code)
+        {
+            var t = ToolName(code);
+            switch (t)
+            {
+                case "object.create":
+                case "component.add":
+                case "object.rename":
+                case "object.delete":
+                case "object.move":
+                case "script.create":
+                case "script.attach":
+                case "log":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        // Extracts the leading command/tool name from either a bare command line
+        // or a JSON { "tool": ... } envelope, lowercased.
+        private static string ToolName(string code)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return "";
+            code = code.Trim();
+            if (code.StartsWith("{"))
+            {
+                try { return (JsonUtility.FromJson<Envelope>(code)?.tool ?? "").Trim().ToLowerInvariant(); }
+                catch { return ""; }
+            }
+            int sp = code.IndexOf(' ');
+            return (sp > 0 ? code.Substring(0, sp) : code).Trim().ToLowerInvariant();
+        }
+
+        [Serializable] private class Envelope { public string tool; public string args; }
+        [Serializable] private class Args
+        {
+            public string type;      // primitive: cube, sphere, capsule, plane, cylinder, quad
+            public string name;      // object / new name
+            public string target;    // object to act on (by name)
+            public string parent;    // optional parent name
+            public string component; // component type to add
+            public string script;    // script class name
+            public string code;      // script source (for script.create)
+            public float x, y, z;    // position / move
+        }
+
         public static string Run(string code)
         {
             if (string.IsNullOrWhiteSpace(code))
                 return "ERROR: empty command.";
 
             code = code.Trim();
+
+            // JSON envelope form: { "tool": "...", "args": "{...}" }
+            if (code.StartsWith("{"))
+            {
+                Envelope env;
+                try { env = JsonUtility.FromJson<Envelope>(code); }
+                catch (Exception e) { return "RUNTIME ERROR: bad JSON envelope: " + e.Message; }
+                var a = new Args();
+                if (!string.IsNullOrWhiteSpace(env?.args))
+                {
+                    try { a = JsonUtility.FromJson<Args>(env.args) ?? new Args(); } catch { }
+                }
+                try { return Dispatch((env?.tool ?? "").Trim().ToLowerInvariant(), a); }
+                catch (Exception e) { return "RUNTIME ERROR: " + e.Message; }
+            }
+
             string cmd = code;
             string arg = "";
             int sp = code.IndexOf(' ');
@@ -67,14 +133,184 @@ namespace LovelaceForge.Bridge
                         Debug.Log("[Lovelace Forge] " + arg);
                         return "Logged to the Unity Console: " + arg;
                     default:
-                        return "Unknown command '" + cmd + "'. Available: ping, scene.info, " +
-                               "scene.hierarchy, selection.info, assets.count, editor.info, log <message>.";
+                        return "Unknown command '" + cmd + "'. Available reads: scene.info, " +
+                               "scene.hierarchy, selection.info, assets.count, editor.info. " +
+                               "Writes are sent as JSON tools: object.create, component.add, " +
+                               "object.rename, object.delete, object.move, script.create, script.attach.";
                 }
             }
             catch (Exception e)
             {
                 return "RUNTIME ERROR: " + e.Message;
             }
+        }
+
+        // Routes a JSON tool call to its implementation.
+        private static string Dispatch(string tool, Args a)
+        {
+            switch (tool)
+            {
+                case "ping": return "pong";
+                case "scene.info": return SceneInfo();
+                case "scene.hierarchy": return SceneHierarchy();
+                case "selection.info": return SelectionInfo();
+                case "assets.count": return AssetsCount();
+                case "editor.info": return EditorInfo();
+                case "object.create": return ObjectCreate(a);
+                case "component.add": return ComponentAdd(a);
+                case "object.rename": return ObjectRename(a);
+                case "object.delete": return ObjectDelete(a);
+                case "object.move": return ObjectMove(a);
+                case "script.create": return ScriptCreate(a);
+                case "script.attach": return ScriptAttach(a);
+                default: return "Unknown tool '" + tool + "'.";
+            }
+        }
+
+        // ---- WRITE COMMANDS (main thread) ----
+
+        private static GameObject Find(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            foreach (var root in SceneManager.GetActiveScene().GetRootGameObjects())
+            {
+                if (root.name == name) return root;
+                foreach (var t in root.GetComponentsInChildren<Transform>(true))
+                    if (t.name == name) return t.gameObject;
+            }
+            return null;
+        }
+
+        private static string ObjectCreate(Args a)
+        {
+            var kind = (a.type ?? "cube").Trim().ToLowerInvariant();
+            PrimitiveType prim;
+            switch (kind)
+            {
+                case "sphere": prim = PrimitiveType.Sphere; break;
+                case "capsule": prim = PrimitiveType.Capsule; break;
+                case "plane": prim = PrimitiveType.Plane; break;
+                case "cylinder": prim = PrimitiveType.Cylinder; break;
+                case "quad": prim = PrimitiveType.Quad; break;
+                default: prim = PrimitiveType.Cube; break;
+            }
+            var go = GameObject.CreatePrimitive(prim);
+            go.name = string.IsNullOrWhiteSpace(a.name) ? char.ToUpper(kind[0]) + kind.Substring(1) : a.name;
+            go.transform.position = new Vector3(a.x, a.y, a.z);
+            if (!string.IsNullOrWhiteSpace(a.parent))
+            {
+                var p = Find(a.parent);
+                if (p != null) go.transform.SetParent(p.transform, true);
+            }
+            Undo.RegisterCreatedObjectUndo(go, "Create " + go.name);
+            Selection.activeGameObject = go;
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Created " + kind + " '" + go.name + "' at (" + a.x + ", " + a.y + ", " + a.z + ").";
+        }
+
+        private static string ComponentAdd(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            var type = ResolveComponentType(a.component);
+            if (type == null) return "RUNTIME ERROR: unknown component '" + a.component + "'.";
+            if (go.GetComponent(type) != null) return "'" + a.target + "' already has a " + type.Name + ".";
+            Undo.AddComponent(go, type);
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Added " + type.Name + " to '" + a.target + "'.";
+        }
+
+        // Resolves a friendly component name to a real UnityEngine type.
+        private static Type ResolveComponentType(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            var n = name.Trim();
+            var direct = typeof(Rigidbody).Assembly.GetType("UnityEngine." + n, false, true);
+            if (direct != null && typeof(Component).IsAssignableFrom(direct)) return direct;
+            // Common aliases / physics types live in the physics module too.
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var t = asm.GetType("UnityEngine." + n, false, true) ?? asm.GetType(n, false, true);
+                if (t != null && typeof(Component).IsAssignableFrom(t)) return t;
+            }
+            return null;
+        }
+
+        private static string ObjectRename(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            Undo.RecordObject(go, "Rename");
+            go.name = a.name;
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Renamed to '" + a.name + "'.";
+        }
+
+        private static string ObjectDelete(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            var scene = go.scene;
+            Undo.DestroyObjectImmediate(go);
+            EditorSceneManager.MarkSceneDirty(scene);
+            return "Deleted '" + a.target + "'.";
+        }
+
+        private static string ObjectMove(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            Undo.RecordObject(go.transform, "Move");
+            go.transform.position = new Vector3(a.x, a.y, a.z);
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Moved '" + a.target + "' to (" + a.x + ", " + a.y + ", " + a.z + ").";
+        }
+
+        // Writes a C# MonoBehaviour into Assets/LovelaceForge/ and triggers a
+        // recompile. The class name must match the file name for Unity to attach it.
+        private static string ScriptCreate(Args a)
+        {
+            if (string.IsNullOrWhiteSpace(a.script)) return "RUNTIME ERROR: script name required.";
+            var cls = a.script.Trim();
+            var dir = "Assets/LovelaceForge";
+            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            var path = dir + "/" + cls + ".cs";
+            var src = string.IsNullOrWhiteSpace(a.code) ? DefaultScript(cls) : a.code;
+            File.WriteAllText(path, src);
+            AssetDatabase.ImportAsset(path);
+            AssetDatabase.Refresh();
+            return "Created script " + path + ". Unity is recompiling — attach it once the spinner finishes.";
+        }
+
+        private static string DefaultScript(string cls)
+        {
+            return "using UnityEngine;\\n\\npublic class " + cls + " : MonoBehaviour\\n{\\n" +
+                   "    void Start() { }\\n\\n    void Update() { }\\n}\\n";
+        }
+
+        // Attaches an already-compiled MonoBehaviour (by class name) to an object.
+        private static string ScriptAttach(Args a)
+        {
+            var go = Find(a.target);
+            if (go == null) return "RUNTIME ERROR: no object named '" + a.target + "'.";
+            var type = ResolveMonoBehaviour(a.script);
+            if (type == null)
+                return "The script '" + a.script + "' isn't compiled yet. Wait for Unity to finish compiling, then try attaching again.";
+            if (go.GetComponent(type) != null) return "'" + a.target + "' already has " + type.Name + ".";
+            Undo.AddComponent(go, type);
+            EditorSceneManager.MarkSceneDirty(go.scene);
+            return "Attached " + type.Name + " to '" + a.target + "'.";
+        }
+
+        private static Type ResolveMonoBehaviour(string cls)
+        {
+            if (string.IsNullOrWhiteSpace(cls)) return null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var t = asm.GetType(cls, false, true);
+                if (t != null && typeof(MonoBehaviour).IsAssignableFrom(t)) return t;
+            }
+            return null;
         }
 
         private static string SceneInfo()
