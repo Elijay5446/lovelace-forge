@@ -47,15 +47,33 @@ type BridgeAction =
   | { kind: "read"; command: string; args?: any }
   | { kind: "write"; tool: string; args: any };
 
+// Validates a single raw action object from the model against the known
+// read/write vocabulary. Returns a clean BridgeAction or null.
+function validateAction(parsed: any): BridgeAction | null {
+  if (!parsed || typeof parsed !== "object") return null;
+  if (parsed.kind === "read" && BRIDGE_READ_COMMANDS.includes(parsed.command)) {
+    return { kind: "read", command: parsed.command, args: parsed.args || {} };
+  }
+  if (parsed.kind === "write" && BRIDGE_WRITE_TOOLS.includes(parsed.tool)) {
+    return { kind: "write", tool: parsed.tool, args: parsed.args || {} };
+  }
+  return null;
+}
+
 // Ask the model whether this user turn needs the live Unity editor, and if so
-// what to run. Returns a read command, a write tool call, or null. Deterministic
-// (temperature 0) so it's a fast, cheap router — not a chat turn. The model
-// replies with a strict JSON object we validate before trusting.
-async function routeBridgeAction(groqKey: string, userMessage: string): Promise<BridgeAction | null> {
+// what to run. A single message often implies SEVERAL editor actions ("create a
+// plane, scale it, and color it") — so the router returns an ORDERED LIST of
+// actions, which we run in sequence on the bridge. Returns [] when the turn is
+// pure conversation. Deterministic (temperature 0): a fast, cheap router, not a
+// chat turn. The model replies with strict JSON we validate before trusting.
+async function routeBridgeActions(groqKey: string, userMessage: string): Promise<BridgeAction[]> {
   const routerSystem =
-    "You convert a game developer's message into a Unity editor bridge action, or NONE. " +
-    "Reply with ONLY a single minified JSON object, no prose. You have FULL command of the " +
-    "user's live Unity editor through these tools — prefer acting over explaining.\n\n" +
+    "You convert a game developer's message into an ORDERED LIST of Unity editor bridge actions. " +
+    "Reply with ONLY a single minified JSON object of the form {\"actions\":[ ... ]}, no prose. " +
+    "One message often means SEVERAL actions — e.g. 'create a plane, scale it 4,1,4 and color it #111114' " +
+    "becomes THREE actions: object.create, then object.scale, then object.color on that same object. " +
+    "Break the request into every atomic action needed and list them in the order they must run. " +
+    "You have FULL command of the user's live Unity editor through these tools — prefer acting over explaining.\n\n" +
     "READ actions — { \"kind\": \"read\", \"command\": \"<one of>\", \"args\": { ... } }:\n" +
     "  scene.info | scene.hierarchy | selection.info | assets.count | editor.info  (no args)\n" +
     "  object.inspect  args: { target: <object name> }  — full transform + component list\n\n" +
@@ -82,10 +100,14 @@ async function routeBridgeAction(groqKey: string, userMessage: string): Promise<
     "  editor.play     args: { mode: play|stop }\n\n" +
     "Rules: default position to 0,0,0 if unspecified. For a floor/ground use type plane. " +
     "For a player use type capsule named 'Player' unless told otherwise. Use property.set for any " +
-    "configuration that has no dedicated tool. The user's message may imply ONE clear action — pick it. " +
+    "configuration that has no dedicated tool. When several objects share the same target name across " +
+    "actions, reuse that exact name so later actions find the object the earlier one created. " +
     "If the user asks a general question, wants advice, or wants code explained (not placed in the " +
-    "scene), reply exactly {\"kind\":\"none\"}. Only choose an action when the user clearly wants to " +
-    "read from or change their actual open Unity scene/project.";
+    "scene), reply exactly {\"actions\":[]}. Only include actions when the user clearly wants to " +
+    "read from or change their actual open Unity scene/project.\n\n" +
+    "Each action is one of:\n" +
+    "  { \"kind\": \"read\", \"command\": \"<read command>\", \"args\": { ... } }\n" +
+    "  { \"kind\": \"write\", \"tool\": \"<write tool>\", \"args\": { ... } }";
   try {
     const res = await fetch(GROQ_URL, {
       method: "POST",
@@ -97,25 +119,24 @@ async function routeBridgeAction(groqKey: string, userMessage: string): Promise<
           { role: "user", content: userMessage },
         ],
         temperature: 0,
-        max_tokens: 300,
+        max_tokens: 900,
         response_format: { type: "json_object" },
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const json = await res.json();
     const raw = (json?.choices?.[0]?.message?.content || "").trim();
     let parsed: any;
-    try { parsed = JSON.parse(raw); } catch { return null; }
-    if (!parsed || parsed.kind === "none") return null;
-    if (parsed.kind === "read" && BRIDGE_READ_COMMANDS.includes(parsed.command)) {
-      return { kind: "read", command: parsed.command, args: parsed.args || {} };
+    try { parsed = JSON.parse(raw); } catch { return []; }
+    const list = Array.isArray(parsed?.actions) ? parsed.actions : [];
+    const out: BridgeAction[] = [];
+    for (const a of list) {
+      const v = validateAction(a);
+      if (v) out.push(v);
     }
-    if (parsed.kind === "write" && BRIDGE_WRITE_TOOLS.includes(parsed.tool)) {
-      return { kind: "write", tool: parsed.tool, args: parsed.args || {} };
-    }
-    return null;
+    return out;
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -180,29 +201,43 @@ Deno.serve(async (req) => {
     // the REAL output into the model's context so Lovelace answers from (and
     // reports on) the actual editor instead of guessing.
     let bridgeContext = "";
-    const action = await routeBridgeAction(groqKey, userMessage);
-    if (action) {
+    const actions = await routeBridgeActions(groqKey, userMessage);
+    if (actions.length > 0) {
       const bridge = await getBridge(base44).catch(() => null);
       if (bridge?.tunnel_url && bridge.status === "connected") {
-        const label = action.kind === "read" ? action.command : action.tool;
-        const out = await runOnBridge(bridge.tunnel_url, actionToCode(action));
-        if (out?.success) {
-          if (action.kind === "read") {
-            bridgeContext =
-              `LIVE UNITY EDITOR OUTPUT (command \`${label}\`), read moments ago from the user's actual open project. ` +
-              `Answer using THIS real data — do not tell the user to go look themselves:\n\n` +
-              String(out.result ?? "").slice(0, 4000);
+        // Run every action in order against the live editor, collecting a
+        // step-by-step log. A later action (e.g. color) depends on an earlier one
+        // (create), so sequencing matters — we keep going even if one step fails
+        // and report the whole run truthfully.
+        const steps: string[] = [];
+        let anyReads = false;
+        let anySuccess = false;
+        for (const action of actions) {
+          const label = action.kind === "read" ? action.command : action.tool;
+          if (action.kind === "read") anyReads = true;
+          const out = await runOnBridge(bridge.tunnel_url, actionToCode(action));
+          if (out?.success) {
+            anySuccess = true;
+            steps.push(`✓ \`${label}\` → ${String(out.result ?? "ok").slice(0, 500)}`);
           } else {
-            bridgeContext =
-              `You just performed the action \`${label}\` on the user's LIVE Unity editor and it SUCCEEDED. ` +
-              `Bridge result:\n\n${String(out.result ?? "").slice(0, 2000)}\n\n` +
-              `Confirm to the user in one or two friendly sentences what you changed in their scene, ` +
-              `and suggest the natural next step. Do NOT paste code or tell them to do it manually — it is already done.`;
+            steps.push(`✗ \`${label}\` FAILED → ${out?.error || "unknown error"}`);
           }
+        }
+        const log = steps.join("\n");
+        if (anyReads) {
+          bridgeContext =
+            `LIVE UNITY EDITOR RESULTS, from the user's actual open project moments ago. ` +
+            `Answer using THIS real data — do not tell the user to go look themselves:\n\n${log.slice(0, 4000)}`;
+        } else if (anySuccess) {
+          bridgeContext =
+            `You just executed these actions on the user's LIVE Unity editor, in order. Results:\n\n${log.slice(0, 3000)}\n\n` +
+            `Confirm to the user in one or two friendly sentences what you built/changed in their scene, ` +
+            `and suggest the natural next step. If any step failed, mention it plainly. ` +
+            `Do NOT paste code or tell them to do it manually — the successful steps are already done.`;
         } else {
           bridgeContext =
-            `You attempted to ${action.kind === "read" ? "read" : "change"} the user's live Unity editor (\`${label}\`) but the bridge call failed: ` +
-            `${out?.error || "unknown error"}. Briefly tell the user the editor couldn't be reached and to check the tunnel/bridge, then help as best you can.`;
+            `You attempted to change the user's live Unity editor but every step failed:\n\n${log.slice(0, 2000)}\n\n` +
+            `Briefly tell the user the editor couldn't be reached and to check the tunnel/bridge, then help as best you can.`;
         }
       } else {
         bridgeContext =
