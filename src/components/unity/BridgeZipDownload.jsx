@@ -29,8 +29,14 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.0.0";
-        public static string Url => $"http://localhost:{Port}";
+        public const string Version = "1.1.0";
+
+        // The host we actually managed to bind to (set on a successful Start).
+        public static string BoundHost { get; private set; } = "127.0.0.1";
+        public static string Url => $"http://{BoundHost}:{Port}";
+
+        // Surfaced in the window so it never lies about being "Connected".
+        public static string LastError { get; private set; } = "";
 
         private static HttpListener _listener;
         private static CancellationTokenSource _cts;
@@ -58,21 +64,43 @@ namespace LovelaceForge.Bridge
         public static void Start()
         {
             if (IsRunning) return;
-            try
+
+            // Try the most permissive hosts first. 127.0.0.1 usually needs no URL
+            // reservation on Windows; localhost and "+" are fallbacks. We stop at
+            // the first host that binds AND is actually listening.
+            string[] hosts = { "127.0.0.1", "localhost", "+" };
+            LastError = "";
+            foreach (var host in hosts)
             {
-                _listener = new HttpListener();
-                _listener.Prefixes.Add($"http://localhost:{Port}/");
-                _listener.Start();
-                _cts = new CancellationTokenSource();
-                SessionState.SetBool("LovelaceBridgeRunning", true);
-                _ = ListenLoop(_cts.Token);
-                Debug.Log("[Lovelace Forge] Bridge listening on " + Url);
+                try
+                {
+                    var listener = new HttpListener();
+                    listener.Prefixes.Add($"http://{host}:{Port}/");
+                    listener.Start(); // throws if the OS won't grant the binding
+                    _listener = listener;
+                    BoundHost = host == "+" ? "127.0.0.1" : host;
+                    _cts = new CancellationTokenSource();
+                    SessionState.SetBool("LovelaceBridgeRunning", true);
+                    _ = ListenLoop(_cts.Token);
+                    LastError = "";
+                    Debug.Log("[Lovelace Forge] Bridge listening on http://" + host + ":" + Port + "/");
+                    return;
+                }
+                catch (Exception e)
+                {
+                    LastError = e.Message;
+                    // Keep trying the next host.
+                }
             }
-            catch (Exception e)
-            {
-                Debug.LogError("[Lovelace Forge] Failed to start bridge: " + e.Message +
-                    "\\nOn Windows, run: netsh http add urlacl url=http://localhost:9876/ user=Everyone");
-            }
+
+            // Nothing bound — leave a clear, actionable error the window can show.
+            _listener = null;
+            SessionState.SetBool("LovelaceBridgeRunning", false);
+            Debug.LogError("[Lovelace Forge] Failed to start bridge on any host. Last error: " + LastError +
+                "\\nOn Windows this is usually a URL reservation. Run this once in an ADMIN Command Prompt:" +
+                "\\n  netsh http add urlacl url=http://127.0.0.1:9876/ user=Everyone" +
+                "\\n  netsh http add urlacl url=http://localhost:9876/ user=Everyone" +
+                "\\nAlso confirm nothing else is using port 9876 (e.g. an old MCP Unity Server).");
         }
 
         public static void Stop()
@@ -224,14 +252,28 @@ namespace LovelaceForge.Bridge
             GUILayout.Label("Live link between Lovelace and your editor.", EditorStyles.miniLabel);
             GUILayout.Space(10);
 
-            // Status pill
+            // Status pill — reflects whether the listener is ACTUALLY listening,
+            // not just whether we intended to start it.
             bool running = BridgeServer.IsRunning;
             var pill = new GUIStyle(GUI.skin.box);
             pill.normal.background = MakeTex(running ? new Color(0.12f, 0.45f, 0.20f) : new Color(0.45f, 0.12f, 0.12f));
             GUILayout.BeginVertical(pill, GUILayout.Height(28));
-            GUILayout.Label(running ? "●  Connected   " + BridgeServer.Url : "●  Not running", EditorStyles.whiteBoldLabel);
+            GUILayout.Label(running ? "●  Listening   " + BridgeServer.Url : "●  Not listening", EditorStyles.whiteBoldLabel);
             GUILayout.EndVertical();
             GUILayout.Space(10);
+
+            // If a start attempt failed, show the real reason + the exact fix.
+            if (!running && !string.IsNullOrEmpty(BridgeServer.LastError))
+            {
+                EditorGUILayout.HelpBox(
+                    "Bridge could not bind to port " + BridgeServer.Port + ".\\n" +
+                    "Reason: " + BridgeServer.LastError + "\\n\\n" +
+                    "Fix (run once in an ADMIN Command Prompt):\\n" +
+                    "  netsh http add urlacl url=http://127.0.0.1:9876/ user=Everyone\\n" +
+                    "Then click Start Bridge again.",
+                    MessageType.Error);
+                GUILayout.Space(8);
+            }
 
             if (running)
             {
@@ -256,7 +298,8 @@ namespace LovelaceForge.Bridge
             GUILayout.Space(6);
             GUILayout.Label("Local test", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "With the bridge running, open in a browser:\\nhttp://localhost:9876/health",
+                "With the bridge listening, open in a browser:\\n" + BridgeServer.Url + "/ping\\n" +
+                "You should see: { \\"ok\\": true, \\"pong\\": true }",
                 MessageType.None);
 
             GUILayout.FlexibleSpace();
@@ -405,9 +448,13 @@ fixed version.
 - POST /execute body { "code": "..." } -> { success, result, error }
 
 ## Troubleshooting
-- "Failed to start bridge" on Windows — reserve the URL once (run as admin):
+- Bridge won't bind / "Not listening" on Windows — reserve the URL once (run as admin):
+  netsh http add urlacl url=http://127.0.0.1:9876/ user=Everyone
   netsh http add urlacl url=http://localhost:9876/ user=Everyone
-- Port 9876 in use — change BridgeServer.Port and the tunnel URL to match.
+  The bridge tries 127.0.0.1, then localhost, then "+" automatically, and the
+  window shows the real bind error if all three fail.
+- Port 9876 in use — an old "MCP Unity Server" package or a previous bridge may
+  hold it. Disable that package, or change BridgeServer.Port + the tunnel URL.
 - No Tools menu — keep the LovelaceForge.Bridge.Editor.asmdef file in the folder
   (it makes the scripts editor-only) and make sure you're on Unity 6+. Check the
   Console for compile errors.
