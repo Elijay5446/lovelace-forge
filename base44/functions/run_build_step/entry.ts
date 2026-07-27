@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.38';
-import { getBridge, runActionsOnBridge } from '../../shared/bridge.ts';
+import { getBridge, runActionsOnBridge, runOnBridge } from '../../shared/bridge.ts';
 
 // Runs ONE pre-authored logo-build step directly against the user's live Unity
 // bridge — with ZERO Groq/LLM calls. The frontend passes the step's exact
@@ -56,12 +56,36 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Speed-up for the cleanup step: deletes go through Unity's slow write
+    // queue, so before sending a tolerant all-delete batch, do one fast READ
+    // (scene.hierarchy runs instantly, off the main thread) and drop deletes
+    // whose targets don't exist. A fresh scene skips the write queue entirely.
+    let toRun = actions;
+    if (tolerant && actions.every((a: any) => a?.tool === "object.delete")) {
+      const hier = await runOnBridge(bridge.tunnel_url, "scene.hierarchy");
+      if (hier?.success) {
+        const text = String(hier.result || "");
+        toRun = actions.filter((a: any) => text.includes("- " + (a?.args?.target || "")));
+      }
+    }
+
+    if (toRun.length === 0) {
+      const reply = narration || "Step complete.";
+      await base44.entities.Message.create({
+        conversation_id: conversationId,
+        role: "assistant",
+        content: reply,
+        model_source: MODEL_SOURCE,
+      });
+      return Response.json({ success: true, reply });
+    }
+
     // Try one batch envelope first (single main-thread pass); older bridge
     // versions without `batch` fall back to sequential — and error text inside
     // any step's result marks the step failed instead of a false success.
     const out = await runActionsOnBridge(
       bridge.tunnel_url,
-      actions.map((a: any) => actionToCode(a))
+      toRun.map((a: any) => actionToCode(a))
     );
 
     if (!out?.success && !tolerant) {
