@@ -121,6 +121,8 @@ namespace LovelaceForge.Bridge
             public string fbx;       // rigged model url (character.import)
             public string walk;      // walk animation url (character.import)
             public string run;       // run animation url (character.import)
+            public string tex;       // base-color texture png url (character.import)
+            public string nrm;       // normal map png url (character.import)
         }
 
         public static string Run(string code)
@@ -556,11 +558,12 @@ namespace LovelaceForge.Bridge
         private static string _charName = "";
         private static string _charFolder = "";
         private static string[] _charUrls = new string[0];
+        private static string[] _charFiles = new string[0];
         private static volatile string _charPhase = "idle";
         private static volatile string _charError = "";
         private static volatile int _charDone;
         private static volatile int _charTotal;
-        private static readonly string[] CharSuffixes = { "_Rigged.fbx", "_Walk.fbx", "_Run.fbx" };
+
 
         private static string CharacterImport(Args a)
         {
@@ -571,16 +574,27 @@ namespace LovelaceForge.Bridge
 
             _charName = string.IsNullOrWhiteSpace(a.name) ? "Character" : a.name.Trim();
             _charFolder = "Assets/GeneratedCharacters/" + _charName;
+            // Parallel url/destination lists — Meshy's textures are separate PNG
+            // downloads, and walk/run are optional, so positions can't be assumed.
             var urls = new System.Collections.Generic.List<string>();
-            urls.Add(a.fbx);
-            if (!string.IsNullOrWhiteSpace(a.walk)) urls.Add(a.walk);
-            if (!string.IsNullOrWhiteSpace(a.run)) urls.Add(a.run);
+            var files = new System.Collections.Generic.List<string>();
+            urls.Add(a.fbx); files.Add(_charFolder + "/" + _charName + "_Rigged.fbx");
+            if (!string.IsNullOrWhiteSpace(a.walk)) { urls.Add(a.walk); files.Add(_charFolder + "/" + _charName + "_Walk.fbx"); }
+            if (!string.IsNullOrWhiteSpace(a.run)) { urls.Add(a.run); files.Add(_charFolder + "/" + _charName + "_Run.fbx"); }
+            if (!string.IsNullOrWhiteSpace(a.tex)) { urls.Add(a.tex); files.Add(_charFolder + "/Textures/" + _charName + "_BaseColor.png"); }
+            if (!string.IsNullOrWhiteSpace(a.nrm)) { urls.Add(a.nrm); files.Add(_charFolder + "/Textures/" + _charName + "_Normal.png"); }
             _charUrls = urls.ToArray();
+            _charFiles = files.ToArray();
             _charTotal = _charUrls.Length;
             _charDone = 0;
             _charError = "";
 
-            try { Directory.CreateDirectory(_charFolder); }
+            try
+            {
+                Directory.CreateDirectory(_charFolder);
+                Directory.CreateDirectory(_charFolder + "/Textures");
+                Directory.CreateDirectory(_charFolder + "/Materials");
+            }
             catch (Exception e) { return "RUNTIME ERROR: could not create " + _charFolder + ": " + e.Message; }
 
             _charPhase = "downloading";
@@ -598,9 +612,8 @@ namespace LovelaceForge.Bridge
                     System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11;
                 for (int i = 0; i < _charUrls.Length; i++)
                 {
-                    string path = _charFolder + "/" + _charName + CharSuffixes[i];
                     using (var client = new System.Net.WebClient())
-                        client.DownloadFile(_charUrls[i], path);
+                        client.DownloadFile(_charUrls[i], _charFiles[i]);
                     _charDone = i + 1;
                 }
                 _charPhase = "downloaded";
@@ -660,6 +673,7 @@ namespace LovelaceForge.Bridge
                 instance.transform.position = Vector3.zero;
                 instance.transform.localScale = new Vector3(4f, 4f, 4f);
                 FaceCamera(instance);
+                matNote += ApplyMeshyTextures(instance);
                 Undo.RegisterCreatedObjectUndo(instance, "Import " + _charName);
                 Selection.activeGameObject = instance;
                 if (SceneView.lastActiveSceneView != null) SceneView.lastActiveSceneView.FrameSelected();
@@ -673,6 +687,82 @@ namespace LovelaceForge.Bridge
                 _charError = e.Message;
                 return "RUNTIME ERROR: " + e.Message;
             }
+        }
+
+        // Meshy never embeds textures in the rigged FBX — it ships them as
+        // separate PNGs. We download those alongside the model and build a real
+        // material here, then assign it to every renderer on the character.
+        private static string ApplyMeshyTextures(GameObject go)
+        {
+            string basePath = _charFolder + "/Textures/" + _charName + "_BaseColor.png";
+            if (!File.Exists(basePath)) return " (no base-color texture was supplied)";
+
+            AssetDatabase.ImportAsset(basePath, ImportAssetOptions.ForceUpdate);
+            var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(basePath);
+            if (albedo == null) return " (Unity could not read the base-color texture)";
+
+            Texture2D normal = null;
+            string normPath = _charFolder + "/Textures/" + _charName + "_Normal.png";
+            if (File.Exists(normPath))
+            {
+                AssetDatabase.ImportAsset(normPath, ImportAssetOptions.ForceUpdate);
+                var ni = AssetImporter.GetAtPath(normPath) as TextureImporter;
+                if (ni != null && ni.textureType != TextureImporterType.NormalMap)
+                {
+                    ni.textureType = TextureImporterType.NormalMap;
+                    ni.SaveAndReimport();
+                }
+                normal = AssetDatabase.LoadAssetAtPath<Texture2D>(normPath);
+            }
+
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            if (shader == null) return " (no usable shader found)";
+
+            string matPath = _charFolder + "/Materials/" + _charName + "_Mat.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            if (mat == null)
+            {
+                mat = new Material(shader);
+                AssetDatabase.CreateAsset(mat, matPath);
+            }
+            mat.shader = shader;
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", albedo);
+            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", albedo);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.25f);
+            if (normal != null && mat.HasProperty("_BumpMap"))
+            {
+                mat.SetTexture("_BumpMap", normal);
+                mat.EnableKeyword("_NORMALMAP");
+            }
+            EditorUtility.SetDirty(mat);
+            AssetDatabase.SaveAssets();
+
+            int painted = 0;
+            bool missingUv = false;
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                var smr = r as SkinnedMeshRenderer;
+                var mesh = smr != null ? smr.sharedMesh : null;
+                if (mesh == null)
+                {
+                    var mf = r.GetComponent<MeshFilter>();
+                    if (mf != null) mesh = mf.sharedMesh;
+                }
+                if (mesh != null && (mesh.uv == null || mesh.uv.Length == 0)) missingUv = true;
+
+                int slots = Mathf.Max(1, r.sharedMaterials.Length);
+                var mats = new Material[slots];
+                for (int i = 0; i < slots; i++) mats[i] = mat;
+                r.sharedMaterials = mats;
+                painted++;
+            }
+
+            if (painted == 0) return " (no renderers found on the model)";
+            string note = " Textured " + painted + " renderer(s) with the Meshy base-color map.";
+            if (missingUv) note += " WARNING: the mesh has no UV channel — re-run rigging on a textured Meshy model.";
+            return note;
         }
 
         // Pulls the FBX's embedded textures and materials out into real asset

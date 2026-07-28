@@ -34,6 +34,7 @@ export default function SendToUnity({ job, onSent, onReset }) {
     try {
       await importCharacter(
         {
+          jobId: job.id,
           name: job.character_name,
           fbx: job.rigged_fbx_url,
           walk: job.walking_fbx_url,
@@ -87,7 +88,7 @@ export default function SendToUnity({ job, onSent, onReset }) {
           </button>
           {phase && <p className="mt-2.5 text-xs text-stone-400">{phase}</p>}
           <p className="mt-2 text-[11px] text-stone-600">
-            Requires Forge Bridge v1.11 or newer — re-download it from the Connect page if the import
+            Requires Forge Bridge v1.12 or newer — re-download it from the Connect page if the import
             says the command is unknown.
           </p>
         </div>

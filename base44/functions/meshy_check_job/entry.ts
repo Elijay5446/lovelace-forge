@@ -31,11 +31,15 @@ Deno.serve(async (req) => {
       const t = res.data || {};
 
       if (t.status === "SUCCEEDED") {
+        // Textures live ONLY on this task — the rigged FBX has none embedded.
+        const texSet = (t.texture_urls || [])[0] || {};
         await base44.entities.MeshyJob.update(job.id, {
           status: "3d_complete",
           model_glb_url: t.model_urls?.glb || "",
           model_fbx_url: t.model_urls?.fbx || "",
           thumbnail_url: t.thumbnail_url || "",
+          texture_url: texSet.base_color || "",
+          normal_map_url: texSet.normal || "",
         });
         // Auto-start rigging — pass the 3D task ID directly (no re-upload).
         const rig = await meshyFetch(key, "/rigging", {

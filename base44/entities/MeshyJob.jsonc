@@ -62,6 +62,16 @@
       "type": "string",
       "title": "Running Animation FBX URL"
     },
+    "texture_url": {
+      "type": "string",
+      "title": "Base Color Texture URL",
+      "description": "Meshy base-color PNG. Signed and expiring \u2014 refetched before each Unity send."
+    },
+    "normal_map_url": {
+      "type": "string",
+      "title": "Normal Map URL",
+      "description": "Meshy normal-map PNG. Signed and expiring."
+    },
     "consumed_credits": {
       "type": "number",
       "title": "Consumed Credits"
