@@ -29,23 +29,27 @@ export async function importCharacter({ jobId, name, fbx, walk, run }, onPhase =
   // Meshy's texture PNGs are signed and expire, so always fetch them fresh
   // instead of reusing whatever was stored when the job finished.
   onPhase("Fetching texture maps from Meshy…");
-  let tex = "";
-  let nrm = "";
+  let maps = {};
   try {
     const res = await base44.functions.invoke("meshy_texture_urls", { job_id: jobId });
     const d = res?.data || res;
-    tex = d?.base_color || "";
-    nrm = d?.normal || "";
+    maps = {
+      tex: d?.base_color || "",
+      nrm: d?.normal || "",
+      met: d?.metallic || "",
+      rgh: d?.roughness || "",
+      emi: d?.emission || "",
+    };
   } catch {
     // Non-fatal: the model still imports, just untextured.
   }
 
   onPhase("Asking Unity to download the model and textures…");
-  const start = await exec("character.import", { name, fbx, walk, run, tex, nrm });
+  const start = await exec("character.import", { name, fbx, walk, run, ...maps });
 
   if (/Unknown (tool|command)/i.test(start)) {
     throw new Error(
-      "Your Forge Bridge is too old to import characters. Open the Connect page, download the bridge again (v1.13+), replace the LovelaceForgeBridge folder in your project, and retry."
+      "Your Forge Bridge is too old to import characters. Open the Connect page, download the bridge again (v1.14+), replace the LovelaceForgeBridge folder in your project, and retry."
     );
   }
   if (/RUNTIME ERROR/i.test(start)) throw new Error(start.replace(/^RUNTIME ERROR:\s*/i, ""));

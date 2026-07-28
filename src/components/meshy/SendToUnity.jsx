@@ -88,7 +88,7 @@ export default function SendToUnity({ job, onSent, onReset }) {
           </button>
           {phase && <p className="mt-2.5 text-xs text-stone-400">{phase}</p>}
           <p className="mt-2 text-[11px] text-stone-600">
-            Requires Forge Bridge v1.13 or newer — re-download it from the Connect page if the import
+            Requires Forge Bridge v1.14 or newer — re-download it from the Connect page if the import
             says the command is unknown.
           </p>
         </div>

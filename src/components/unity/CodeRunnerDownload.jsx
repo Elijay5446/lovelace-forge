@@ -123,6 +123,9 @@ namespace LovelaceForge.Bridge
             public string run;       // run animation url (character.import)
             public string tex;       // base-color texture png url (character.import)
             public string nrm;       // normal map png url (character.import)
+            public string met;       // metallic map png url (character.import)
+            public string rgh;       // roughness map png url (character.import)
+            public string emi;       // emission map png url (character.import)
         }
 
         public static string Run(string code)
@@ -584,6 +587,9 @@ namespace LovelaceForge.Bridge
             if (!string.IsNullOrWhiteSpace(a.run)) { urls.Add(a.run); files.Add(_charFolder + "/" + _charName + "_Run.fbx"); }
             if (!string.IsNullOrWhiteSpace(a.tex)) { urls.Add(a.tex); files.Add(_charFolder + "/Textures/" + _charName + "_BaseColor.png"); }
             if (!string.IsNullOrWhiteSpace(a.nrm)) { urls.Add(a.nrm); files.Add(_charFolder + "/Textures/" + _charName + "_Normal.png"); }
+            if (!string.IsNullOrWhiteSpace(a.met)) { urls.Add(a.met); files.Add(_charFolder + "/Textures/" + _charName + "_Metallic.png"); }
+            if (!string.IsNullOrWhiteSpace(a.rgh)) { urls.Add(a.rgh); files.Add(_charFolder + "/Textures/" + _charName + "_Roughness.png"); }
+            if (!string.IsNullOrWhiteSpace(a.emi)) { urls.Add(a.emi); files.Add(_charFolder + "/Textures/" + _charName + "_Emission.png"); }
             _charUrls = urls.ToArray();
             _charFiles = files.ToArray();
             _charTotal = _charUrls.Length;
@@ -716,28 +722,84 @@ namespace LovelaceForge.Bridge
         // Meshy never embeds textures in the rigged FBX — it ships them as
         // separate PNGs. We download those alongside the model and build a real
         // material here, then assign it to every renderer on the character.
+        // Imports one Meshy map with the right color space / readability so the
+        // shader interprets it correctly (a linear mask read as sRGB looks wrong).
+        private static Texture2D ImportMap(string path, TextureImporterType type, bool sRGB, bool readable)
+        {
+            if (!File.Exists(path)) return null;
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (ti != null)
+            {
+                bool dirty = false;
+                if (ti.textureType != type) { ti.textureType = type; dirty = true; }
+                if (ti.sRGBTexture != sRGB) { ti.sRGBTexture = sRGB; dirty = true; }
+                if (ti.isReadable != readable) { ti.isReadable = readable; dirty = true; }
+                if (!ti.mipmapEnabled) { ti.mipmapEnabled = true; dirty = true; }
+                if (ti.anisoLevel < 8) { ti.anisoLevel = 8; dirty = true; }
+                if (ti.textureCompression != TextureImporterCompression.CompressedHQ)
+                { ti.textureCompression = TextureImporterCompression.CompressedHQ; dirty = true; }
+                if (dirty) ti.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        // URP/Lit wants ONE mask texture: RGB = metallic, A = smoothness. Meshy
+        // ships metallic and roughness as two separate greyscale PNGs, so we
+        // combine them here (smoothness = 1 - roughness) and save a real asset.
+        private static Texture2D PackMetallicSmoothness(Texture2D metallic, Texture2D roughness)
+        {
+            var src = metallic != null ? metallic : roughness;
+            if (src == null) return null;
+            int w = src.width, h = src.height;
+
+            Color[] mPix = null, rPix = null;
+            try { if (metallic != null) mPix = metallic.GetPixels(); } catch { }
+            try { if (roughness != null && roughness.width == w && roughness.height == h) rPix = roughness.GetPixels(); }
+            catch { }
+            if (mPix == null && rPix == null) return null;
+
+            var packed = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+            var outPix = new Color[w * h];
+            for (int i = 0; i < outPix.Length; i++)
+            {
+                float m = mPix != null ? mPix[i].r : 0f;
+                float s = rPix != null ? 1f - rPix[i].r : 0.5f;
+                outPix[i] = new Color(m, m, m, s);
+            }
+            packed.SetPixels(outPix);
+            packed.Apply();
+
+            string path = _charFolder + "/Textures/" + _charName + "_MetallicSmoothness.png";
+            File.WriteAllBytes(path, packed.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(packed);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+
+            var ti = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (ti != null)
+            {
+                ti.textureType = TextureImporterType.Default;
+                ti.sRGBTexture = false;                                   // it's a mask, not a color
+                ti.alphaSource = TextureImporterAlphaSource.FromInput;    // keep smoothness in alpha
+                ti.alphaIsTransparency = false;
+                ti.mipmapEnabled = true;
+                ti.textureCompression = TextureImporterCompression.CompressedHQ;
+                ti.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
         private static string ApplyMeshyTextures(GameObject go)
         {
-            string basePath = _charFolder + "/Textures/" + _charName + "_BaseColor.png";
-            if (!File.Exists(basePath)) return " (no base-color texture was supplied)";
+            string dir = _charFolder + "/Textures/" + _charName;
+            var albedo = ImportMap(dir + "_BaseColor.png", TextureImporterType.Default, true, false);
+            if (albedo == null) return " (no base-color texture was supplied)";
 
-            AssetDatabase.ImportAsset(basePath, ImportAssetOptions.ForceUpdate);
-            var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(basePath);
-            if (albedo == null) return " (Unity could not read the base-color texture)";
-
-            Texture2D normal = null;
-            string normPath = _charFolder + "/Textures/" + _charName + "_Normal.png";
-            if (File.Exists(normPath))
-            {
-                AssetDatabase.ImportAsset(normPath, ImportAssetOptions.ForceUpdate);
-                var ni = AssetImporter.GetAtPath(normPath) as TextureImporter;
-                if (ni != null && ni.textureType != TextureImporterType.NormalMap)
-                {
-                    ni.textureType = TextureImporterType.NormalMap;
-                    ni.SaveAndReimport();
-                }
-                normal = AssetDatabase.LoadAssetAtPath<Texture2D>(normPath);
-            }
+            var normal    = ImportMap(dir + "_Normal.png", TextureImporterType.NormalMap, false, false);
+            var metallic  = ImportMap(dir + "_Metallic.png", TextureImporterType.Default, false, true);
+            var roughness = ImportMap(dir + "_Roughness.png", TextureImporterType.Default, false, true);
+            var emission  = ImportMap(dir + "_Emission.png", TextureImporterType.Default, true, false);
+            var mask = PackMetallicSmoothness(metallic, roughness);
 
             var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
             if (shader == null) return " (no usable shader found)";
@@ -753,13 +815,37 @@ namespace LovelaceForge.Bridge
             if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", albedo);
             if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", albedo);
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
-            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
-            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.25f);
+
             if (normal != null && mat.HasProperty("_BumpMap"))
             {
                 mat.SetTexture("_BumpMap", normal);
+                if (mat.HasProperty("_BumpScale")) mat.SetFloat("_BumpScale", 1f);
                 mat.EnableKeyword("_NORMALMAP");
             }
+
+            if (mask != null && mat.HasProperty("_MetallicGlossMap"))
+            {
+                mat.SetTexture("_MetallicGlossMap", mask);
+                mat.EnableKeyword("_METALLICSPECGLOSSMAP");
+                // Smoothness comes from the mask's alpha, scaled by _Smoothness.
+                if (mat.HasProperty("_SmoothnessTextureChannel")) mat.SetFloat("_SmoothnessTextureChannel", 0f);
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 1f);
+                if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 1f);
+            }
+            else
+            {
+                if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.3f);
+            }
+
+            if (emission != null && mat.HasProperty("_EmissionMap"))
+            {
+                mat.SetTexture("_EmissionMap", emission);
+                mat.SetColor("_EmissionColor", Color.white);
+                mat.EnableKeyword("_EMISSION");
+                mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+            }
+
             EditorUtility.SetDirty(mat);
             AssetDatabase.SaveAssets();
 
@@ -784,7 +870,11 @@ namespace LovelaceForge.Bridge
             }
 
             if (painted == 0) return " (no renderers found on the model)";
-            string note = " Textured " + painted + " renderer(s) with the Meshy base-color map.";
+            string maps = "base color";
+            if (normal != null) maps += " + normal";
+            if (mask != null) maps += " + metallic/smoothness";
+            if (emission != null) maps += " + emission";
+            string note = " Textured " + painted + " renderer(s) with the full Meshy PBR set (" + maps + ").";
             if (missingUv) note += " WARNING: the mesh has no UV channel — re-run rigging on a textured Meshy model.";
             return note;
         }

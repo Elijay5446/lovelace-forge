@@ -28,13 +28,16 @@ Deno.serve(async (req) => {
 
     const base_color = set.base_color || '';
     const normal = set.normal || '';
+    const metallic = set.metallic || '';
+    const roughness = set.roughness || '';
+    const emission = set.emission || '';
 
     // Cache for reference/debugging; the fresh values above are what get used.
     if (base_color && base_color !== job.texture_url) {
       await base44.entities.MeshyJob.update(job.id, { texture_url: base_color, normal_map_url: normal });
     }
 
-    return Response.json({ base_color, normal, has_texture: !!base_color });
+    return Response.json({ base_color, normal, metallic, roughness, emission, has_texture: !!base_color });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
