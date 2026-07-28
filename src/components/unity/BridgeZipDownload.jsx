@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import JSZip from "jszip";
 import { CODE_RUNNER_CS } from "@/components/unity/CodeRunnerDownload";
+import { LOGO_CUBE_CS } from "@/components/chat/logoCubeScript";
+import { LOGO_TEXT_CS } from "@/components/chat/logoTextScript";
 
 // Keep in sync with BridgeServer.Version in BRIDGE_SERVER_CS below.
-const BRIDGE_VERSION = "1.8.0";
+const BRIDGE_VERSION = "1.9.0";
 
 // Builds the entire Forge Bridge package in-browser at click time from the
 // corrected source, so the download is always current — nothing hosted to keep
@@ -32,7 +34,7 @@ namespace LovelaceForge.Bridge
     public static class BridgeServer
     {
         public const int Port = 9876;
-        public const string Version = "1.8.0";
+        public const string Version = "1.9.0";
 
         // The host we actually managed to bind to (set on a successful Start).
         public static string BoundHost { get; private set; } = "127.0.0.1";
@@ -463,6 +465,20 @@ const ASMDEF = `{
 }
 `;
 
+// Runtime (non-editor) assembly for the demo behaviours that ship with the
+// bridge. Having Base44LogoCube/Base44LogoText pre-compiled at install time is
+// what lets the logo demo skip Unity's multi-minute mid-demo recompile.
+const DEMO_ASMDEF = `{
+  "name": "LovelaceForge.DemoBehaviours",
+  "rootNamespace": "",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "autoReferenced": true
+}
+`;
+
 const README_TXT = `LOVELACE FORGE — UNITY BRIDGE
 ==============================
 
@@ -568,6 +584,13 @@ export default function BridgeZipDownload({ className = "" }) {
       folder.file("start_forge_tunnel.sh", START_SH);
       folder.file("README.md", README);
       folder.file("README.txt", README_TXT);
+
+      // Demo behaviours compile once at install time, so the live demo can
+      // attach them instantly instead of writing C# and waiting for a recompile.
+      const demo = folder.folder("DemoBehaviours");
+      demo.file("Base44LogoCube.cs", LOGO_CUBE_CS);
+      demo.file("Base44LogoText.cs", LOGO_TEXT_CS);
+      demo.file("LovelaceForge.DemoBehaviours.asmdef", DEMO_ASMDEF);
 
       const blob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(blob);

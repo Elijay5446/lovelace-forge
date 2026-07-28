@@ -231,17 +231,30 @@ export default function AppWorkspace() {
       }
       if (abortRunRef.current) return;
 
-      if (createStep) {
-        setAutoRun((prev) => ({ ...prev, current: createStep.n }));
-        await runOneStep(convoId, { ...createStep, tolerant: true });
-      }
-      if (abortRunRef.current) return;
-
+      // FAST PATH: bridge v1.9+ ships Base44LogoCube/Base44LogoText pre-compiled
+      // in the package, so try attaching immediately — this skips writing C# and
+      // Unity's multi-minute recompile, which was most of the demo's runtime.
       if (attachStep) {
         setAutoRun((prev) => ({ ...prev, current: attachStep.n }));
         let attached = true;
         for (const a of attachStep.attach) {
-          if (!(await attachScript(a.target, a.script))) attached = false;
+          if (!(await attachScript(a.target, a.script, 8000))) {
+            attached = false;
+            break;
+          }
+        }
+
+        // SLOW PATH (older bridge installs): write the scripts into the project,
+        // then poll until Unity finishes compiling and the attach lands.
+        if (!attached && createStep && !abortRunRef.current) {
+          setAutoRun((prev) => ({ ...prev, current: createStep.n }));
+          await runOneStep(convoId, { ...createStep, tolerant: true });
+          if (abortRunRef.current) return;
+          setAutoRun((prev) => ({ ...prev, current: attachStep.n }));
+          attached = true;
+          for (const a of attachStep.attach) {
+            if (!(await attachScript(a.target, a.script))) attached = false;
+          }
         }
         await base44.entities.Message.create({
           conversation_id: convoId,
