@@ -29,6 +29,28 @@ export default function CreateCharacter() {
   };
   useEffect(() => () => stopPolling(), []);
 
+  // Pick up the most recent Meshy job on load, so a refresh (or coming back
+  // later) resumes the existing generation instead of starting over.
+  useEffect(() => {
+    (async () => {
+      try {
+        const [latest] = await base44.entities.MeshyJob.list("-created_date", 1);
+        if (!latest || latest.status === "failed") return;
+        setJob(latest);
+        setStartedAt(new Date(latest.created_date).getTime());
+        if (latest.status !== "complete") {
+          pollOnce(latest.id);
+          startPolling(latest.id);
+        } else {
+          setProgress(100);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const pollOnce = async (jobId) => {
     try {
       const res = await base44.functions.invoke("meshy_check_job", { job_id: jobId });
