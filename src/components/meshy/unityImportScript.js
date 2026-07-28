@@ -51,7 +51,7 @@ public static class ${className}
         var importer = AssetImporter.GetAtPath(fbxPath) as ModelImporter;
         if (importer != null)
         {
-            importer.animationType = ModelImporterAnimationType.Humanoid;
+            importer.animationType = ModelImporterAnimationType.Human;
             importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
             importer.SaveAndReimport();
         }
