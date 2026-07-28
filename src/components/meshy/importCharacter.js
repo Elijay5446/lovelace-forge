@@ -45,7 +45,7 @@ export async function importCharacter({ jobId, name, fbx, walk, run }, onPhase =
 
   if (/Unknown (tool|command)/i.test(start)) {
     throw new Error(
-      "Your Forge Bridge is too old to import characters. Open the Connect page, download the bridge again (v1.12+), replace the LovelaceForgeBridge folder in your project, and retry."
+      "Your Forge Bridge is too old to import characters. Open the Connect page, download the bridge again (v1.13+), replace the LovelaceForgeBridge folder in your project, and retry."
     );
   }
   if (/RUNTIME ERROR/i.test(start)) throw new Error(start.replace(/^RUNTIME ERROR:\s*/i, ""));
@@ -54,9 +54,16 @@ export async function importCharacter({ jobId, name, fbx, walk, run }, onPhase =
   const began = Date.now();
   while (Date.now() - began < TOTAL_TIMEOUT_MS) {
     await sleep(POLL_MS);
-    const status = await exec("character.status", {});
+    // Always ask about THIS character, so a leftover result from an earlier job
+    // can never be mistaken for this one finishing.
+    const status = await exec("character.status", { name });
     if (/RUNTIME ERROR/i.test(status)) throw new Error(status.replace(/^RUNTIME ERROR:\s*/i, ""));
     if (/^DONE/i.test(status)) return true;
+    if (/^IDLE/i.test(status)) {
+      throw new Error(
+        `Unity lost track of this import — it usually means the editor recompiled scripts mid-import. Press "Send to Unity" again; it will pick up where it left off.`
+      );
+    }
     if (/DOWNLOADING|IMPORTING/i.test(status)) onPhase(status);
     // Anything else (a relay timeout while Unity is busy) — just keep polling.
   }

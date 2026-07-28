@@ -568,7 +568,8 @@ namespace LovelaceForge.Bridge
         private static string CharacterImport(Args a)
         {
             if (_charPhase == "downloading" || _charPhase == "importing")
-                return "A character import is already running (" + _charDone + "/" + _charTotal + " files).";
+                return "RUNTIME ERROR: an import of '" + _charName + "' is still running (" +
+                       _charDone + "/" + _charTotal + " files). Wait for it to finish, then retry.";
             if (string.IsNullOrWhiteSpace(a.fbx))
                 return "RUNTIME ERROR: no rigged FBX url was supplied.";
 
@@ -627,6 +628,29 @@ namespace LovelaceForge.Bridge
 
         private static string CharacterStatus(Args a)
         {
+            // Status is always asked about a SPECIFIC character. Without this the
+            // caller could be handed a stale "DONE" left over from an earlier job.
+            string want = (a.name ?? "").Trim();
+            if (want.Length > 0 && want != _charName)
+            {
+                // A script recompile / domain reload wipes these statics mid-import.
+                // If the files already landed on disk, pick that job back up and
+                // finish it instead of reporting that nothing ever started.
+                string folder = "Assets/GeneratedCharacters/" + want;
+                if (File.Exists(folder + "/" + want + "_Rigged.fbx"))
+                {
+                    _charName = want;
+                    _charFolder = folder;
+                    _charError = "";
+                    _charPhase = "downloaded";
+                }
+                else
+                {
+                    return "IDLE — no import is running for '" + want + "'" +
+                           (_charPhase == "idle" ? "." : " (Unity is tracking '" + _charName + "').");
+                }
+            }
+
             if (_charPhase == "idle") return "IDLE — no character import has been started.";
             if (_charPhase == "downloading")
                 return "DOWNLOADING " + _charDone + "/" + _charTotal + " files for '" + _charName + "'.";
