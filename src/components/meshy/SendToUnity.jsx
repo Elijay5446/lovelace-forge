@@ -41,16 +41,26 @@ export default function SendToUnity({ job, onSent, onReset }) {
       });
 
       setPhase("Writing import script to Unity…");
-      const res = await base44.functions.invoke("unity_bridge_relay", {
-        action: "execute",
-        code: JSON.stringify({
-          tool: "script.create",
-          args: JSON.stringify({ script: className, code }),
-        }),
-      });
-      const data = res?.data || res;
-      if (data?.success === false) {
-        throw new Error(data?.error || "The Unity bridge rejected the import script.");
+      // Unity freezes its main thread while it recompiles the new script, so the
+      // relay call almost always times out even though the script arrived fine.
+      // A timeout is expected here — only a real rejection should stop us, and
+      // the scene watch below is what actually confirms success.
+      let data;
+      try {
+        const res = await base44.functions.invoke("unity_bridge_relay", {
+          action: "execute",
+          code: JSON.stringify({
+            tool: "script.create",
+            args: JSON.stringify({ script: className, code }),
+          }),
+        });
+        data = res?.data || res;
+      } catch (e) {
+        data = e?.response?.data || { success: false, error: e?.message || "" };
+      }
+      const relayError = data?.success === false ? String(data?.error || "") : "";
+      if (relayError && !/did not respond|timed? ?out/i.test(relayError)) {
+        throw new Error(relayError || "The Unity bridge rejected the import script.");
       }
 
       setPhase("Unity is compiling, downloading the model, and importing… this can take a few minutes.");
