@@ -21,6 +21,12 @@ export default function CharacterUpload({ disabled, busy, onGenerate }) {
     if (preview) URL.revokeObjectURL(preview);
     setFile(f);
     setPreview(URL.createObjectURL(f));
+    // Auto-fill the character name from the filename so Generate is never
+    // silently blocked by an empty name.
+    if (!name.trim()) {
+      const base = f.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+      if (base) setName(base.replace(/\b\w/g, (c) => c.toUpperCase()));
+    }
   };
 
   const clearFile = () => {
@@ -29,7 +35,13 @@ export default function CharacterUpload({ disabled, busy, onGenerate }) {
     setPreview("");
   };
 
-  const canGenerate = !!file && !!name.trim() && !disabled && !busy;
+  const handleGenerateClick = () => {
+    if (disabled) return setError("Connect your Meshy API key above first.");
+    if (!file) return setError("Please add a character image first.");
+    if (!name.trim()) return setError("Please enter a character name first.");
+    setError("");
+    onGenerate(file, name.trim());
+  };
 
   return (
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-5">
@@ -86,8 +98,8 @@ export default function CharacterUpload({ disabled, busy, onGenerate }) {
       />
 
       <button
-        onClick={() => canGenerate && onGenerate(file, name.trim())}
-        disabled={!canGenerate}
+        onClick={handleGenerateClick}
+        disabled={busy}
         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(245,158,11,0.25)] transition hover:from-amber-500 hover:to-orange-500 disabled:opacity-50 disabled:shadow-none"
       >
         <Sparkles className="h-4 w-4" /> Generate 3D Character
