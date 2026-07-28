@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { buildCharacterImportScript } from "@/components/meshy/unityImportScript";
-import { waitForObject } from "@/components/chat/verifyBuild";
+import { importCharacter } from "@/components/meshy/importCharacter";
 import { AlertTriangle, Check, Download, Loader2, RotateCcw, Send } from "lucide-react";
 
-// Section 4: ship the rigged character into the user's live Unity editor. The
-// bridge can't compile arbitrary C# directly, so we use its script.create tool:
-// it writes a self-executing [InitializeOnLoadMethod] editor script into the
-// project; Unity compiles it, and the script downloads + imports + places the
-// character on its own. We then watch the scene until the character appears.
+// Section 4: ship the rigged character into the user's live Unity editor.
+// The bridge exposes a first-class `character.import` command (bridge v1.10+):
+// it downloads the FBX on a background thread and finishes the AssetDatabase
+// import on Unity's main thread — no generated C#, no recompile, no domain
+// reload, and real errors come straight back to this screen.
 export default function SendToUnity({ job, onSent, onReset }) {
   const [bridgeOk, setBridgeOk] = useState(null); // null = checking
   const [sending, setSending] = useState(false);
@@ -33,49 +32,20 @@ export default function SendToUnity({ job, onSent, onReset }) {
     setSending(true);
     setError("");
     try {
-      const { objectName, code, className } = buildCharacterImportScript({
-        characterName: job.character_name,
-        riggedFbxUrl: job.rigged_fbx_url,
-        walkingFbxUrl: job.walking_fbx_url,
-        runningFbxUrl: job.running_fbx_url,
-      });
-
-      setPhase("Writing import script to Unity…");
-      // Unity freezes its main thread while it recompiles the new script, so the
-      // relay call almost always times out even though the script arrived fine.
-      // A timeout is expected here — only a real rejection should stop us, and
-      // the scene watch below is what actually confirms success.
-      let data;
-      try {
-        const res = await base44.functions.invoke("unity_bridge_relay", {
-          action: "execute",
-          code: JSON.stringify({
-            tool: "script.create",
-            args: JSON.stringify({ script: className, code }),
-          }),
-        });
-        data = res?.data || res;
-      } catch (e) {
-        data = e?.response?.data || { success: false, error: e?.message || "" };
-      }
-      const relayError = data?.success === false ? String(data?.error || "") : "";
-      if (relayError && !/did not respond|timed? ?out/i.test(relayError)) {
-        throw new Error(relayError || "The Unity bridge rejected the import script.");
-      }
-
-      setPhase("Unity is compiling, downloading the model, and importing… this can take a few minutes.");
-      const appeared = await waitForObject(objectName, 360000);
-      if (!appeared) {
-        throw new Error(
-          "The character hasn't appeared in the scene yet. Check the Unity Console for [Lovelace Forge] messages — the import may still be running."
-        );
-      }
-
+      await importCharacter(
+        {
+          name: job.character_name,
+          fbx: job.rigged_fbx_url,
+          walk: job.walking_fbx_url,
+          run: job.running_fbx_url,
+        },
+        setPhase
+      );
       await base44.entities.MeshyJob.update(job.id, { sent_to_unity: true });
       setSent(true);
       onSent?.();
     } catch (e) {
-      setError(e?.response?.data?.error || e?.message || "Send failed.");
+      setError(e?.message || "Send failed.");
     } finally {
       setSending(false);
       setPhase("");
@@ -116,10 +86,14 @@ export default function SendToUnity({ job, onSent, onReset }) {
             {sending ? "Sending to Unity…" : "Send to Unity"}
           </button>
           {phase && <p className="mt-2.5 text-xs text-stone-400">{phase}</p>}
+          <p className="mt-2 text-[11px] text-stone-600">
+            Requires Forge Bridge v1.10 or newer — re-download it from the Connect page if the import
+            says the command is unknown.
+          </p>
         </div>
       )}
 
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-3 whitespace-pre-wrap text-sm text-red-400">{error}</p>}
 
       <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-4">
         {job.rigged_fbx_url && (

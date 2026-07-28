@@ -69,6 +69,8 @@ namespace LovelaceForge.Bridge
                 case "property.set":
                 case "script.create":
                 case "script.attach":
+                case "character.import":
+                case "character.status":
                 case "scene.save":
                 case "editor.play":
                 case "batch":
@@ -115,6 +117,9 @@ namespace LovelaceForge.Bridge
             public string mode;      // light kind: directional | point | spot (object.light)
             public float x, y, z;    // position / move / rotation (euler) / scale
             public float intensity;  // light intensity (object.light)
+            public string fbx;       // rigged model url (character.import)
+            public string walk;      // walk animation url (character.import)
+            public string run;       // run animation url (character.import)
         }
 
         public static string Run(string code)
@@ -228,6 +233,8 @@ namespace LovelaceForge.Bridge
                 case "property.set": return PropertySet(a);
                 case "script.create": return ScriptCreate(a);
                 case "script.attach": return ScriptAttach(a);
+                case "character.import": return CharacterImport(a);
+                case "character.status": return CharacterStatus(a);
                 case "scene.save": return SceneSave();
                 case "editor.play": return EditorPlay(a);
                 default: return "Unknown tool '" + tool + "'.";
@@ -535,6 +542,124 @@ namespace LovelaceForge.Bridge
                 case "gray": case "grey": col = Color.gray; return true;
                 case "orange": col = new Color(1f, 0.5f, 0f); return true;
                 default: return false;
+            }
+        }
+
+        // ---- CHARACTER IMPORT ----
+        // Downloads a Meshy-rigged FBX (+ optional walk/run clips) on a background
+        // thread, then finishes the AssetDatabase import + scene placement on the
+        // main thread. Split in two so the HTTP call NEVER blocks for minutes:
+        // character.import kicks it off and returns instantly; character.status is
+        // polled and does the main-thread finish work once the files have landed.
+        // Every failure is captured and reported back verbatim — no silent deaths.
+        private static string _charName = "";
+        private static string _charFolder = "";
+        private static string[] _charUrls = new string[0];
+        private static volatile string _charPhase = "idle";
+        private static volatile string _charError = "";
+        private static volatile int _charDone;
+        private static volatile int _charTotal;
+        private static readonly string[] CharSuffixes = { "_Rigged.fbx", "_Walk.fbx", "_Run.fbx" };
+
+        private static string CharacterImport(Args a)
+        {
+            if (_charPhase == "downloading" || _charPhase == "importing")
+                return "A character import is already running (" + _charDone + "/" + _charTotal + " files).";
+            if (string.IsNullOrWhiteSpace(a.fbx))
+                return "RUNTIME ERROR: no rigged FBX url was supplied.";
+
+            _charName = string.IsNullOrWhiteSpace(a.name) ? "Character" : a.name.Trim();
+            _charFolder = "Assets/GeneratedCharacters/" + _charName;
+            var urls = new System.Collections.Generic.List<string>();
+            urls.Add(a.fbx);
+            if (!string.IsNullOrWhiteSpace(a.walk)) urls.Add(a.walk);
+            if (!string.IsNullOrWhiteSpace(a.run)) urls.Add(a.run);
+            _charUrls = urls.ToArray();
+            _charTotal = _charUrls.Length;
+            _charDone = 0;
+            _charError = "";
+
+            try { Directory.CreateDirectory(_charFolder); }
+            catch (Exception e) { return "RUNTIME ERROR: could not create " + _charFolder + ": " + e.Message; }
+
+            _charPhase = "downloading";
+            var t = new System.Threading.Thread(DownloadWorker);
+            t.IsBackground = true;
+            t.Start();
+            return "STARTED downloading " + _charTotal + " file(s) for '" + _charName + "'.";
+        }
+
+        private static void DownloadWorker()
+        {
+            try
+            {
+                System.Net.ServicePointManager.SecurityProtocol =
+                    System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls11;
+                for (int i = 0; i < _charUrls.Length; i++)
+                {
+                    string path = _charFolder + "/" + _charName + CharSuffixes[i];
+                    using (var client = new System.Net.WebClient())
+                        client.DownloadFile(_charUrls[i], path);
+                    _charDone = i + 1;
+                }
+                _charPhase = "downloaded";
+            }
+            catch (Exception e)
+            {
+                _charError = e.Message;
+                _charPhase = "error";
+            }
+        }
+
+        private static string CharacterStatus(Args a)
+        {
+            if (_charPhase == "idle") return "IDLE — no character import has been started.";
+            if (_charPhase == "downloading")
+                return "DOWNLOADING " + _charDone + "/" + _charTotal + " files for '" + _charName + "'.";
+            if (_charPhase == "importing") return "IMPORTING '" + _charName + "' into Unity.";
+            if (_charPhase == "error") return "RUNTIME ERROR: character import failed: " + _charError;
+            if (_charPhase == "done") return "DONE — '" + _charName + "' is in the scene.";
+
+            // phase == "downloaded" → finish here, on the main thread.
+            try
+            {
+                _charPhase = "importing";
+                AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+                string fbxPath = _charFolder + "/" + _charName + "_Rigged.fbx";
+
+                var importer = AssetImporter.GetAtPath(fbxPath) as ModelImporter;
+                if (importer != null)
+                {
+                    importer.animationType = ModelImporterAnimationType.Human;
+                    importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+                    importer.SaveAndReimport();
+                }
+
+                var prefab = AssetDatabase.LoadMainAssetAtPath(fbxPath) as GameObject;
+                if (prefab == null)
+                {
+                    _charPhase = "error";
+                    _charError = "Unity could not import the model at " + fbxPath + ".";
+                    return "RUNTIME ERROR: " + _charError;
+                }
+
+                var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+                instance.name = _charName;
+                instance.transform.position = Vector3.zero;
+                instance.transform.localScale = new Vector3(4f, 4f, 4f);
+                instance.transform.rotation = Quaternion.Euler(0f, 270f, 0f);
+                Undo.RegisterCreatedObjectUndo(instance, "Import " + _charName);
+                Selection.activeGameObject = instance;
+                if (SceneView.lastActiveSceneView != null) SceneView.lastActiveSceneView.FrameSelected();
+                EditorSceneManager.MarkSceneDirty(instance.scene);
+                _charPhase = "done";
+                return "DONE — '" + _charName + "' imported as a Humanoid rig and placed in the scene.";
+            }
+            catch (Exception e)
+            {
+                _charPhase = "error";
+                _charError = e.Message;
+                return "RUNTIME ERROR: " + e.Message;
             }
         }
 
