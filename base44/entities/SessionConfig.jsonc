@@ -1,0 +1,54 @@
+{
+  "name": "SessionConfig",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "title": "Key",
+      "description": "Config key, e.g. meshy_api_key"
+    },
+    "label": {
+      "type": "string",
+      "title": "Label"
+    },
+    "value": {
+      "type": "string",
+      "title": "Value",
+      "description": "App-level value. Treated as a secret \u2014 only read server-side."
+    },
+    "category": {
+      "type": "string",
+      "title": "Category",
+      "description": "e.g. integration"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

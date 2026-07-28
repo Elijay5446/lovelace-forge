@@ -1,8 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
-import { meshyFetch } from '../../shared/meshy.ts';
+import { getMeshyKey, meshyFetch } from '../../shared/meshy.ts';
 
-// Validates a Meshy API key with a cheap list call, or reports that an
-// app-level MESHY_API_KEY secret is configured (demo mode).
+// With an api_key in the body: validates it against Meshy.
+// Without one: reports which key the fallback chain resolves to
+// (user key overrides the app-level SessionConfig key).
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -13,16 +14,20 @@ Deno.serve(async (req) => {
     const apiKey = typeof body?.api_key === "string" ? body.api_key.trim() : "";
 
     if (!apiKey) {
-      const appKey = Deno.env.get("MESHY_API_KEY");
-      if (appKey) {
-        return Response.json({ connected: true, is_app_key: true, message: "Using app-level Meshy key" });
+      const { key, isAppKey } = await getMeshyKey(base44);
+      if (!key) {
+        return Response.json({ connected: false, error: "Please connect your Meshy API key" });
       }
-      return Response.json({ connected: false, needs_key: true });
+      return Response.json({
+        connected: true,
+        is_app_key: isAppKey,
+        message: isAppKey ? "Using app-level Meshy API key" : "Using your Meshy API key",
+      });
     }
 
     const res = await meshyFetch(apiKey, "/image-to-3d?page_num=1&page_size=1");
     if (res.status === 200) {
-      return Response.json({ connected: true, message: "Meshy API connected successfully" });
+      return Response.json({ connected: true, is_app_key: false, message: "Meshy API connected successfully" });
     }
     if (res.status === 401) {
       return Response.json({ connected: false, error: "Invalid API key" });

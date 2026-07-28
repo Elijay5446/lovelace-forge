@@ -1,17 +1,26 @@
 // Shared Meshy AI helpers used by meshy_connect, meshy_start_generation, and
-// meshy_check_job. Base URL + auth + 43s timeout live here so every function
-// talks to Meshy identically.
+// meshy_check_job. Base URL + auth + timeout live here so every function talks
+// to Meshy identically.
 
 const MESHY_BASE = "https://api.meshy.ai/openapi/v1";
 
-// Resolves the Meshy API key: app-level secret first (demo mode), then the
-// authenticated user's own key from their UserProfile (RLS-scoped read).
+// Resolves the Meshy API key with the app's fallback chain:
+//   1. The user's own key (UserProfile.meshy_api_key) — always wins.
+//   2. The app-level key (SessionConfig where key = "meshy_api_key") — read with
+//      the service role so judges/users never need read access to the secret.
+// Returns { key, isAppKey }.
 export async function getMeshyKey(base44) {
-  const appKey = Deno.env.get("MESHY_API_KEY");
-  if (appKey) return { key: appKey, isAppKey: true };
   const profiles = await base44.entities.UserProfile.filter({});
-  const key = (profiles || []).map((p) => p.meshy_api_key).find(Boolean);
-  return { key: key || null, isAppKey: false };
+  const userKey = (profiles || []).map((p) => (p.meshy_api_key || "").trim()).find(Boolean);
+  if (userKey) return { key: userKey, isAppKey: false };
+
+  const configs = await base44.asServiceRole.entities.SessionConfig
+    .filter({ key: "meshy_api_key" })
+    .catch(() => []);
+  const appKey = (configs || []).map((c) => (c.value || "").trim()).find(Boolean);
+  if (appKey) return { key: appKey, isAppKey: true };
+
+  return { key: null, isAppKey: false };
 }
 
 // Fetch against the Meshy API with bearer auth and a 43-second timeout.

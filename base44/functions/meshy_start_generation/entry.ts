@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
 
     const { key } = await getMeshyKey(base44);
     if (!key) {
-      return Response.json({ error: "Please connect your Meshy API key first" }, { status: 400 });
+      return Response.json({ error: "Please connect your Meshy API key" }, { status: 400 });
     }
 
     const res = await meshyFetch(key, "/image-to-3d", {

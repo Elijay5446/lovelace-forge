@@ -28,11 +28,9 @@ export default function MeshyConnectCard({ onStatus }) {
           base44.entities.UserProfile.filter({}),
         ]);
         const data = res?.data || res;
-        const p = (profiles || [])[0] || null;
-        setProfile(p);
-        if (data?.connected && data?.is_app_key) report(true, true);
-        else if (p?.meshy_api_key) report(true, false);
-        else report(false, false);
+        setProfile((profiles || [])[0] || null);
+        // The backend resolves the fallback chain (user key overrides app key).
+        report(!!data?.connected, !!data?.is_app_key);
       } catch {
         report(false, false);
       } finally {
@@ -74,7 +72,10 @@ export default function MeshyConnectCard({ onStatus }) {
         await base44.entities.UserProfile.update(profile.id, { meshy_api_key: "" });
         setProfile({ ...profile, meshy_api_key: "" });
       }
-      report(false, false);
+      // Their key is gone — the app-level key may still cover them.
+      const res = await base44.functions.invoke("meshy_connect", {});
+      const data = res?.data || res;
+      report(!!data?.connected, !!data?.is_app_key);
     } finally {
       setBusy(false);
     }
@@ -94,11 +95,9 @@ export default function MeshyConnectCard({ onStatus }) {
             </span>
             <div>
               <p className="text-sm font-semibold text-stone-100">Meshy API: Connected ✓</p>
-              {isAppKey && (
-                <span className="mt-0.5 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
-                  Using app API key
-                </span>
-              )}
+              <span className="mt-0.5 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                {isAppKey ? "Using app API key" : "Using your API key"}
+              </span>
             </div>
           </div>
           {!isAppKey && (
