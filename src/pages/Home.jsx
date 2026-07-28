@@ -9,6 +9,7 @@ import CapabilitiesSection from "@/components/landing/CapabilitiesSection";
 import TextToGame from "@/components/landing/TextToGame";
 import ScrollHint from "@/components/landing/ScrollHint";
 import UnderTheHood from "@/components/landing/UnderTheHood";
+import CharacterPipeline from "@/components/landing/CharacterPipeline";
 import WhyBuilt from "@/components/landing/WhyBuilt";
 
 const HERO_IMAGE =
@@ -188,6 +189,8 @@ export default function Home() {
       <TextToGame />
 
       <CapabilitiesSection />
+
+      <CharacterPipeline />
 
       {/* Unity bridge CTA */}
       <section className="relative mx-auto w-full max-w-3xl px-6 pb-8">

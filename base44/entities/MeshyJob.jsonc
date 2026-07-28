@@ -1,0 +1,98 @@
+{
+  "name": "MeshyJob",
+  "type": "object",
+  "properties": {
+    "character_name": {
+      "type": "string",
+      "title": "Character Name",
+      "description": "User-provided name for the character"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "uploading",
+        "3d_generating",
+        "3d_complete",
+        "rigging",
+        "complete",
+        "failed"
+      ],
+      "default": "uploading"
+    },
+    "image_url": {
+      "type": "string",
+      "title": "Image URL",
+      "description": "Public URL of the uploaded character image"
+    },
+    "thumbnail_url": {
+      "type": "string",
+      "title": "Thumbnail URL",
+      "description": "3D preview thumbnail from Meshy"
+    },
+    "meshy_3d_task_id": {
+      "type": "string",
+      "title": "Meshy 3D Task ID"
+    },
+    "meshy_rig_task_id": {
+      "type": "string",
+      "title": "Meshy Rig Task ID"
+    },
+    "model_glb_url": {
+      "type": "string",
+      "title": "Model GLB URL"
+    },
+    "model_fbx_url": {
+      "type": "string",
+      "title": "Model FBX URL"
+    },
+    "rigged_fbx_url": {
+      "type": "string",
+      "title": "Rigged FBX URL"
+    },
+    "rigged_glb_url": {
+      "type": "string",
+      "title": "Rigged GLB URL"
+    },
+    "walking_fbx_url": {
+      "type": "string",
+      "title": "Walking Animation FBX URL"
+    },
+    "running_fbx_url": {
+      "type": "string",
+      "title": "Running Animation FBX URL"
+    },
+    "consumed_credits": {
+      "type": "number",
+      "title": "Consumed Credits"
+    },
+    "error_message": {
+      "type": "string",
+      "title": "Error Message"
+    },
+    "sent_to_unity": {
+      "type": "boolean",
+      "title": "Sent To Unity",
+      "default": false
+    },
+    "unity_screenshot_url": {
+      "type": "string",
+      "title": "Unity Screenshot URL"
+    }
+  },
+  "required": [
+    "character_name"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

@@ -12,6 +12,11 @@
       "title": "Groq API Key",
       "description": "The user's own Groq API key. Used for their chat and council calls so each person draws on their own Groq quota."
     },
+    "meshy_api_key": {
+      "type": "string",
+      "title": "Meshy API Key",
+      "description": "The user's own Meshy AI API key, used for 3D character generation and rigging."
+    },
     "preferences": {
       "type": "object",
       "title": "Preferences",

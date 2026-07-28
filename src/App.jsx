@@ -14,6 +14,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AppWorkspace from './pages/AppWorkspace';
 import ConnectUnity from './pages/ConnectUnity';
+import CreateCharacter from './pages/CreateCharacter';
 import UnitySetup from './pages/UnitySetup';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
@@ -53,6 +54,7 @@ const AuthenticatedApp = () => {
     <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
       <Route path="/app" element={<AppWorkspace />} />
       <Route path="/app/unity" element={<ConnectUnity />} />
+      <Route path="/create-character" element={<CreateCharacter />} />
     </Route>
     <Route path="*" element={<PageNotFound />} />
     </Routes>

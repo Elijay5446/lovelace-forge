@@ -1,7 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Brain, Network, Code2, Cable, Link2, Check, BookOpen } from "lucide-react";
+import { Brain, Network, Code2, Cable, Link2, Check, BookOpen, Wand2 } from "lucide-react";
+
+const CHARACTER_FEATURES = [
+  "Image to 3D with Meshy-6",
+  "PBR texturing (normal, metallic, roughness)",
+  "Auto-rigging with free walk/run animations",
+  "Direct import to Unity via bridge",
+  "T-pose generation for optimal retargeting",
+];
 
 const BRIDGE_FEATURES = [
   "Execute custom C# code in your Unity editor from the browser",
@@ -104,6 +112,41 @@ export default function CapabilitiesSection() {
           className="mt-6 inline-flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
         >
           <BookOpen className="h-4 w-4" /> View Setup Guide
+        </Link>
+      </motion.div>
+
+      {/* AI Character Pipeline */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-60px" }}
+        transition={{ duration: 0.6 }}
+        className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-6 md:p-8"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-700 shadow-[0_0_18px_rgba(245,158,11,0.35)]">
+            <Wand2 className="h-4 w-4 text-white" />
+          </span>
+          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+            AI Character Pipeline
+          </span>
+        </div>
+        <h3 className="mt-4 font-display text-2xl font-semibold text-stone-100">
+          From 2D image to rigged 3D character
+        </h3>
+        <ul className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {CHARACTER_FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-sm text-stone-300">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+        <Link
+          to="/create-character"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:border-amber-400/70 hover:bg-amber-500/10"
+        >
+          <Wand2 className="h-4 w-4" /> Try It Now
         </Link>
       </motion.div>
     </section>
