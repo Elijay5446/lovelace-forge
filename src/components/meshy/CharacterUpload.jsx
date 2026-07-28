@@ -69,7 +69,7 @@ export default function CharacterUpload({ disabled, busy, onGenerate }) {
         />
         {preview ? (
           <div className="relative">
-            <img src={preview} alt="Character preview" className="max-h-48 rounded-lg object-contain" />
+            <img src={preview} alt="Character preview" className="h-48 w-48 rounded-lg object-contain" />
             <button
               onClick={(e) => { e.stopPropagation(); clearFile(); }}
               className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/80 text-stone-300 ring-1 ring-white/20 hover:text-red-300"

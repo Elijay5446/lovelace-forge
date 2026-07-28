@@ -15,9 +15,9 @@ export default function ResultSummary({ job }) {
         <figure>
           <div className="overflow-hidden rounded-lg border border-white/10 bg-black/40">
             {job.image_url ? (
-              <Image src={job.image_url} alt="Original 2D character" className="h-44 w-full" fittingType="fit" />
+              <Image src={job.image_url} alt="Original 2D character" className="aspect-square w-full" fittingType="fit" />
             ) : (
-              <div className="flex h-44 items-center justify-center text-xs text-stone-600">No image</div>
+              <div className="flex aspect-square items-center justify-center text-xs text-stone-600">No image</div>
             )}
           </div>
           <figcaption className="mt-1.5 text-center text-xs text-stone-500">Original 2D image</figcaption>
@@ -28,11 +28,11 @@ export default function ResultSummary({ job }) {
               <Image
                 src={job.unity_screenshot_url || job.thumbnail_url}
                 alt="3D character result"
-                className="h-44 w-full"
+                className="aspect-square w-full"
                 fittingType="fit"
               />
             ) : (
-              <div className="flex h-44 items-center justify-center text-xs text-stone-600">No preview</div>
+              <div className="flex aspect-square items-center justify-center text-xs text-stone-600">No preview</div>
             )}
           </div>
           <figcaption className="mt-1.5 text-center text-xs text-stone-500">

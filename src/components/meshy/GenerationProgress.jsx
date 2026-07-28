@@ -96,7 +96,7 @@ export default function GenerationProgress({ job, progress, startedAt, onCancel 
 
       {job?.thumbnail_url && (
         <div className="mt-4 flex items-center gap-3 rounded-lg border border-white/10 bg-black/30 p-3">
-          <Image src={job.thumbnail_url} alt="3D model preview" className="h-20 w-20 rounded-lg" />
+          <Image src={job.thumbnail_url} alt="3D model preview" className="h-20 w-20 rounded-lg" fittingType="fit" />
           <p className="text-xs text-stone-400">3D model preview from Meshy</p>
         </div>
       )}
