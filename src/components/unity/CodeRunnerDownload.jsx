@@ -15,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -627,12 +628,23 @@ namespace LovelaceForge.Bridge
                 AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
                 string fbxPath = _charFolder + "/" + _charName + "_Rigged.fbx";
 
+                string matNote = "";
                 var importer = AssetImporter.GetAtPath(fbxPath) as ModelImporter;
                 if (importer != null)
                 {
                     importer.animationType = ModelImporterAnimationType.Human;
                     importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+                    // Keep the model's own UVs and import its embedded materials
+                    // instead of dropping everything onto a blank default material.
+                    importer.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
+                    importer.importNormals = ModelImporterNormals.Import;
                     importer.SaveAndReimport();
+
+                    // Meshy bakes the textures INTO the .fbx. Unity won't wire them
+                    // up until they're pulled out as real assets, which is why the
+                    // character shows up untextured. Extract, then re-link.
+                    ExtractSubAssets(fbxPath);
+                    matNote = FixMaterialsForRenderPipeline();
                 }
 
                 var prefab = AssetDatabase.LoadMainAssetAtPath(fbxPath) as GameObject;
@@ -647,13 +659,13 @@ namespace LovelaceForge.Bridge
                 instance.name = _charName;
                 instance.transform.position = Vector3.zero;
                 instance.transform.localScale = new Vector3(4f, 4f, 4f);
-                instance.transform.rotation = Quaternion.Euler(0f, 270f, 0f);
+                FaceCamera(instance);
                 Undo.RegisterCreatedObjectUndo(instance, "Import " + _charName);
                 Selection.activeGameObject = instance;
                 if (SceneView.lastActiveSceneView != null) SceneView.lastActiveSceneView.FrameSelected();
                 EditorSceneManager.MarkSceneDirty(instance.scene);
                 _charPhase = "done";
-                return "DONE — '" + _charName + "' imported as a Humanoid rig and placed in the scene.";
+                return "DONE — '" + _charName + "' imported as a Humanoid rig, textured, and facing the camera." + matNote;
             }
             catch (Exception e)
             {
@@ -661,6 +673,103 @@ namespace LovelaceForge.Bridge
                 _charError = e.Message;
                 return "RUNTIME ERROR: " + e.Message;
             }
+        }
+
+        // Pulls the FBX's embedded textures and materials out into real asset
+        // files next to the model, then re-imports so the model points at them.
+        private static void ExtractSubAssets(string fbxPath)
+        {
+            string texDir = _charFolder + "/Textures";
+            string matDir = _charFolder + "/Materials";
+            Directory.CreateDirectory(texDir);
+            Directory.CreateDirectory(matDir);
+
+            bool changed = false;
+            foreach (var obj in AssetDatabase.LoadAllAssetsAtPath(fbxPath))
+            {
+                if (obj == null) continue;
+                var tex = obj as Texture2D;
+                if (tex != null)
+                {
+                    string dest = texDir + "/" + SafeName(tex.name) + ".png";
+                    if (File.Exists(dest)) continue;
+                    if (string.IsNullOrEmpty(AssetDatabase.ExtractAsset(tex, dest))) changed = true;
+                }
+            }
+            if (changed)
+            {
+                AssetDatabase.WriteImportSettingsIfDirty(fbxPath);
+                AssetDatabase.ImportAsset(fbxPath, ImportAssetOptions.ForceUpdate);
+            }
+
+            changed = false;
+            foreach (var obj in AssetDatabase.LoadAllAssetsAtPath(fbxPath))
+            {
+                var mat = obj as Material;
+                if (mat == null) continue;
+                string dest = matDir + "/" + SafeName(mat.name) + ".mat";
+                if (File.Exists(dest)) continue;
+                if (string.IsNullOrEmpty(AssetDatabase.ExtractAsset(mat, dest))) changed = true;
+            }
+            if (changed)
+            {
+                AssetDatabase.WriteImportSettingsIfDirty(fbxPath);
+                AssetDatabase.ImportAsset(fbxPath, ImportAssetOptions.ForceUpdate);
+            }
+            AssetDatabase.Refresh();
+        }
+
+        private static string SafeName(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return "Texture";
+            foreach (var c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
+            return s;
+        }
+
+        // A Standard-shader material renders magenta under URP/HDRP. Re-point the
+        // extracted materials at URP/Lit and carry the albedo map across.
+        private static string FixMaterialsForRenderPipeline()
+        {
+            if (GraphicsSettings.defaultRenderPipeline == null) return "";
+            var lit = Shader.Find("Universal Render Pipeline/Lit");
+            if (lit == null) return "";
+
+            int n = 0;
+            foreach (var guid in AssetDatabase.FindAssets("t:Material", new[] { _charFolder }))
+            {
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
+                if (mat == null || mat.shader == lit) continue;
+                Texture albedo = mat.HasProperty("_MainTex") ? mat.GetTexture("_MainTex") : null;
+                if (albedo == null && mat.HasProperty("_BaseMap")) albedo = mat.GetTexture("_BaseMap");
+                Color tint = mat.HasProperty("_Color") ? mat.GetColor("_Color") : Color.white;
+                mat.shader = lit;
+                if (albedo != null)
+                {
+                    mat.SetTexture("_BaseMap", albedo);
+                    if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", albedo);
+                }
+                mat.SetColor("_BaseColor", tint);
+                EditorUtility.SetDirty(mat);
+                n++;
+            }
+            AssetDatabase.SaveAssets();
+            return n > 0 ? " Converted " + n + " material(s) to URP/Lit." : "";
+        }
+
+        // Turns the character on the spot so its front faces the game camera
+        // (falling back to the Scene view camera if there's no Main Camera).
+        private static void FaceCamera(GameObject go)
+        {
+            Vector3 camPos;
+            if (Camera.main != null) camPos = Camera.main.transform.position;
+            else if (SceneView.lastActiveSceneView != null && SceneView.lastActiveSceneView.camera != null)
+                camPos = SceneView.lastActiveSceneView.camera.transform.position;
+            else { go.transform.rotation = Quaternion.identity; return; }
+
+            var dir = camPos - go.transform.position;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 0.0001f) { go.transform.rotation = Quaternion.identity; return; }
+            go.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
         }
 
         private static string ObjectInspect(Args a)

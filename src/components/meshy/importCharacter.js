@@ -31,7 +31,7 @@ export async function importCharacter({ name, fbx, walk, run }, onPhase = () => 
 
   if (/Unknown (tool|command)/i.test(start)) {
     throw new Error(
-      "Your Forge Bridge is too old to import characters. Open the Connect page, download the bridge again (v1.10+), replace the LovelaceForgeBridge folder in your project, and retry."
+      "Your Forge Bridge is too old to import characters. Open the Connect page, download the bridge again (v1.11+), replace the LovelaceForgeBridge folder in your project, and retry."
     );
   }
   if (/RUNTIME ERROR/i.test(start)) throw new Error(start.replace(/^RUNTIME ERROR:\s*/i, ""));

@@ -73,7 +73,7 @@ export default function SendToUnity({ job, onSent, onReset }) {
         </div>
       ) : sent ? (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.08] p-3 text-sm text-emerald-300">
-          <Check className="h-4 w-4" /> “{job.character_name}” is in your Unity scene — rigged, scaled 4x, facing right.
+          <Check className="h-4 w-4" /> “{job.character_name}” is in your Unity scene — rigged, textured, and facing the camera.
         </div>
       ) : (
         <div className="mt-3">
@@ -87,7 +87,7 @@ export default function SendToUnity({ job, onSent, onReset }) {
           </button>
           {phase && <p className="mt-2.5 text-xs text-stone-400">{phase}</p>}
           <p className="mt-2 text-[11px] text-stone-600">
-            Requires Forge Bridge v1.10 or newer — re-download it from the Connect page if the import
+            Requires Forge Bridge v1.11 or newer — re-download it from the Connect page if the import
             says the command is unknown.
           </p>
         </div>
