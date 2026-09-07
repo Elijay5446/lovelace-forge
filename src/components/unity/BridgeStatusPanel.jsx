@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Cpu, FolderOpen, Wrench } from "lucide-react";
+import { Loader2, Cpu, FolderOpen, Wrench, Boxes } from "lucide-react";
+
+// Engine flags from /health. "unknown" means the bridge didn't report them —
+// shown neutrally, never as a failure.
+const ENGINE_LABEL = { connected: "Connected", disconnected: "Not attached", unknown: "Unknown" };
 
 // Compact panel below the connect button: live connection dot plus the details
 // the bridge reports — Unity version, project name (from /health) and the
@@ -11,6 +15,7 @@ export default function BridgeStatusPanel({ refreshKey }) {
   const [unityVersion, setUnityVersion] = useState("");
   const [projectName, setProjectName] = useState("");
   const [toolCount, setToolCount] = useState(null);
+  const [blender, setBlender] = useState({ flag: "unknown", addr: "" });
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -23,6 +28,7 @@ export default function BridgeStatusPanel({ refreshKey }) {
       setStatus(s);
       setUnityVersion(bridge?.unity_version || "");
       setProjectName(bridge?.project_name || "");
+      setBlender({ flag: bridge?.blender_engine || "unknown", addr: bridge?.blender_addr || "" });
 
       if (s === "connected") {
         const t = await base44.functions.invoke("unity_bridge_relay", { action: "list_tools" });
@@ -59,13 +65,22 @@ export default function BridgeStatusPanel({ refreshKey }) {
         </span>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Detail icon={Cpu} label="Unity version" value={connected ? unityVersion || "—" : "—"} />
         <Detail icon={FolderOpen} label="Project" value={connected ? projectName || "—" : "—"} />
         <Detail
           icon={Wrench}
           label="Available tools"
           value={connected ? (toolCount === null ? "…" : String(toolCount)) : "—"}
+        />
+        <Detail
+          icon={Boxes}
+          label="Blender"
+          value={
+            connected
+              ? ENGINE_LABEL[blender.flag] + (blender.flag === "connected" && blender.addr ? ` · ${blender.addr}` : "")
+              : "—"
+          }
         />
       </div>
     </div>

@@ -25,6 +25,18 @@ async function fetchWithTimeout(url, opts, timeoutMs) {
   }
 }
 
+// Maps a /health boolean to the stored engine flag. Missing field = unknown.
+const engineFlag = (v) => (typeof v === "boolean" ? (v ? "connected" : "disconnected") : "unknown");
+
+// Fields from a /health probe worth persisting on the BridgeSession.
+const healthPatch = (details) => ({
+  ...(details?.unity_version ? { unity_version: details.unity_version } : {}),
+  ...(details?.project_name ? { project_name: details.project_name } : {}),
+  unity_engine: details?.unity_engine || "unknown",
+  blender_engine: details?.blender_engine || "unknown",
+  blender_addr: details?.blender_addr || "",
+});
+
 // Probe the tunnel with an 8s hard cap — tries /health (which carries the Unity
 // version + project name) then /ping. Returns any details it can parse so the
 // caller can persist them for the status panel.
@@ -41,6 +53,10 @@ async function pingTunnel(tunnelUrl) {
         details = {
           unity_version: parsed.unity || parsed.unity_version || parsed.unityVersion || "",
           project_name: parsed.project || parsed.project_name || parsed.projectName || "",
+          // Engine flags (bridge v2). Absent → "unknown", never "disconnected".
+          unity_engine: engineFlag(parsed.unity_connected),
+          blender_engine: engineFlag(parsed.blender_connected),
+          blender_addr: typeof parsed.blender_addr === "string" ? parsed.blender_addr : "",
         };
       } catch { /* /ping may not return JSON */ }
       return { ok: true, path, details };
@@ -68,24 +84,37 @@ async function listToolsFromTunnel(tunnelUrl) {
   }
 }
 
-// POST C# to the bridge /execute with a 43s hard cap — never hangs longer.
-async function executeOnTunnel(tunnelUrl, code) {
+// POST code to the bridge with a 43s hard cap — never hangs longer.
+// engine "unity" (default): C# / tool envelope → /exec, falling back to /execute.
+// engine "blender": bpy Python → /blender, which returns captured stdout.
+async function executeOnTunnel(tunnelUrl, code, engine = "unity") {
   const base = normalizeUrl(tunnelUrl);
   const opts = {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ code }),
   };
-  // The user's bridge exposes POST /exec; the Forge Bridge package uses /execute.
-  let r = await fetchWithTimeout(base + "/exec", opts, EXECUTE_TIMEOUT_MS);
-  if (!r.timeout && r.status === 404) {
-    r = await fetchWithTimeout(base + "/execute", opts, EXECUTE_TIMEOUT_MS);
+  let r;
+  if (engine === "blender") {
+    r = await fetchWithTimeout(base + "/blender", opts, EXECUTE_TIMEOUT_MS);
+  } else {
+    // The user's bridge exposes POST /exec; the Forge Bridge package uses /execute.
+    r = await fetchWithTimeout(base + "/exec", opts, EXECUTE_TIMEOUT_MS);
+    if (!r.timeout && r.status === 404) {
+      r = await fetchWithTimeout(base + "/execute", opts, EXECUTE_TIMEOUT_MS);
+    }
   }
   if (r.timeout) {
     return {
       success: false,
       error:
-        "Bridge did not respond within 43s — the operation may still be running in Unity. Try again or check that the bridge is running.",
+        `Bridge did not respond within 43s — the operation may still have finished in ${engine === "blender" ? "Blender" : "Unity"}. Verify on the next turn before retrying.`,
+    };
+  }
+  if (engine === "blender" && r.status === 502) {
+    return {
+      success: false,
+      error: "Blender is down or its addon server stopped (bridge /blender → 502). Unity work can continue.",
     };
   }
   if (!r.ok) {
@@ -159,8 +188,7 @@ Deno.serve(async (req) => {
       bridge = await base44.entities.BridgeSession.update(bridge.id, {
         status,
         last_seen_at: nowIso(),
-        ...(ping.details?.unity_version ? { unity_version: ping.details.unity_version } : {}),
-        ...(ping.details?.project_name ? { project_name: ping.details.project_name } : {}),
+        ...healthPatch(ping.details),
       });
       return Response.json({ success: true, bridge });
     }
@@ -175,8 +203,7 @@ Deno.serve(async (req) => {
       const updated = await base44.entities.BridgeSession.update(bridge.id, {
         status,
         last_seen_at: nowIso(),
-        ...(ping.details?.unity_version ? { unity_version: ping.details.unity_version } : {}),
-        ...(ping.details?.project_name ? { project_name: ping.details.project_name } : {}),
+        ...healthPatch(ping.details),
       });
       return Response.json({ success: true, bridge: updated });
     }
@@ -191,12 +218,14 @@ Deno.serve(async (req) => {
     }
 
     if (action === "execute") {
-      // Two shapes: raw C# ({ code }) or a named tool call ({ tool, args }).
+      // Two shapes: raw code ({ code }) or a named tool call ({ tool, args }).
       // For a named tool we forward the name + args to the bridge, which maps it
       // to the C# that implements that tool. We send both "code" (a JSON call
       // envelope) so bridges that key off tool name can dispatch it.
+      // Optional engine: "unity" (default) or "blender" (bpy Python → /blender).
+      const engine = body.engine === "blender" ? "blender" : "unity";
       let code = body.code;
-      if ((typeof code !== "string" || !code.trim()) && body.tool) {
+      if (engine === "unity" && (typeof code !== "string" || !code.trim()) && body.tool) {
         code = JSON.stringify({ tool: String(body.tool), args: body.args || {} });
       }
       if (typeof code !== "string" || !code.trim()) {
@@ -216,11 +245,11 @@ Deno.serve(async (req) => {
         }
       }
       const start = Date.now();
-      const result = await executeOnTunnel(bridge.tunnel_url, code);
+      const result = await executeOnTunnel(bridge.tunnel_url, code, engine);
       const durationMs = Date.now() - start;
       try {
         await base44.entities.BridgeCommandLog.create({
-          action: "execute",
+          action: engine === "blender" ? "execute_blender" : "execute",
           code_preview: code.slice(0, 500),
           success: !!result.success,
           duration_ms: durationMs,
@@ -229,7 +258,7 @@ Deno.serve(async (req) => {
       } catch (logErr) {
         console.error("log failed", logErr?.message);
       }
-      return Response.json({ ...result, duration_ms: durationMs });
+      return Response.json({ ...result, engine, duration_ms: durationMs });
     }
 
     if (action === "disconnect") {

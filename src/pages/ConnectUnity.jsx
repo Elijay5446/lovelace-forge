@@ -24,6 +24,7 @@ import LiveStatus from "@/components/unity/LiveStatus";
 import CommandConsole from "@/components/unity/CommandConsole";
 import BridgeZipDownload from "@/components/unity/BridgeZipDownload";
 import BridgeStatusPanel from "@/components/unity/BridgeStatusPanel";
+import BridgePlaybook from "@/components/unity/BridgePlaybook";
 import FirstRunModal from "@/components/unity/FirstRunModal";
 import { Link } from "react-router-dom";
 import { BookOpen } from "lucide-react";
@@ -331,6 +332,7 @@ export default function ConnectUnity() {
         </div>
 
         <BridgeTroubleshooting />
+        <BridgePlaybook />
 
         {/* Privacy */}
         <section className="mt-12">

@@ -33,6 +33,33 @@
       "title": "Project Name",
       "description": "Name of the Unity project reported by the bridge /health endpoint"
     },
+    "unity_engine": {
+      "type": "string",
+      "title": "Unity Engine Flag",
+      "description": "unity_connected from /health. unknown when the bridge does not report engine flags.",
+      "enum": [
+        "unknown",
+        "connected",
+        "disconnected"
+      ],
+      "default": "unknown"
+    },
+    "blender_engine": {
+      "type": "string",
+      "title": "Blender Engine Flag",
+      "description": "blender_connected from /health. unknown when the bridge does not report engine flags \u2014 never treated as failed.",
+      "enum": [
+        "unknown",
+        "connected",
+        "disconnected"
+      ],
+      "default": "unknown"
+    },
+    "blender_addr": {
+      "type": "string",
+      "title": "Blender Address",
+      "description": "Local Blender MCP addon address reported by /health (e.g. 127.0.0.1:9877)"
+    },
     "last_seen_at": {
       "type": "string",
       "title": "Last Seen At",

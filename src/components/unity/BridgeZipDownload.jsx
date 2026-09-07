@@ -562,6 +562,96 @@ fixed version.
 - No Tools menu — keep the LovelaceForge.Bridge.Editor.asmdef file in the folder
   (it makes the scripts editor-only) and make sure you're on Unity 6+. Check the
   Console for compile errors.
+
+## Blender (optional second engine)
+The bridge can also drive Blender through the Blender MCP addon. The addon
+DEFAULTS to port 9876 and collides with the bridge — the symptom is a tunnel
+hostname that still resolves while /health times out, because nothing is
+listening locally. Move Blender, not the bridge. In Blender's Python console:
+
+    bpy.ops.blendermcp.stop_server()
+    bpy.context.scene.blendermcp_port = 9877
+    bpy.ops.blendermcp.start_server()
+
+"WinError 10038" on stop is a benign shutdown artifact. Once attached, Lovelace
+sends Python to POST /blender {"code": "..."} and receives captured stdout in
+about 0.2s — prefer Blender for mesh/UV work, measurements, renders and even
+filesystem queries, versus a 28-56s Unity compile cycle.
+
+Blender 5.1 traps (renders come back black):
+- scene.node_tree was removed -> use scene.compositing_node_group (a node GROUP
+  with NodeGroupInput/Output). CompositorNodeComposite / CompositorNodeRLayers
+  are undefined types.
+- Glare settings are INPUT SOCKETS, not properties:
+  node.inputs["Type"].default_value with title-case enums ('Bloom', 'Streaks').
+- A badly wired compositor renders 100% black and scene.use_nodes=False does NOT
+  bypass it — set scene.compositing_node_group = None.
+- Measure a render numerically (load the PNG, mean of img.pixels) before
+  trusting it.
+
+## Ports — keep the three services separate
+| Service              | Address          | Role                                                              |
+|----------------------|------------------|-------------------------------------------------------------------|
+| Unity MCP server     | 127.0.0.1:8080   | Started by the Unity MCP package inside the editor. Local only.    |
+| Bridge (Flask relay) | 0.0.0.0:9876     | The ONLY service the tunnel exposes. GET /health, POST /mcp,       |
+|                      |                  | POST /blender, POST /execute (classic Forge Bridge).              |
+| Blender MCP addon    | 127.0.0.1:9877   | Defaults to 9876 — move it to 9877, never move the bridge.        |
+
+/health may report engine flags: unity_connected, blender_connected,
+blender_addr. The "unity_project" field is an environment default and can be a
+decoy — prove liveness with one read-only call against a real asset path.
+
+## Tunnel / URL lifecycle
+- trycloudflare URLs change on every restart. The launcher POSTs the fresh URL
+  to the app on start; Lovelace reads the registered URL first.
+- https only. Allowed host suffixes: .trycloudflare.com, .cfargotunnel.com,
+  .ngrok-free.app, .ngrok.io, .ts.net.
+- After a restart the bridge boots slowly: a null {"success":false} ping means
+  still booting — retry once after ~8s.
+
+## Failure signatures
+| You see                                            | It means                                                                 | Do this                                                        |
+|----------------------------------------------------|--------------------------------------------------------------------------|----------------------------------------------------------------|
+| "mono.exe: The filename or extension is too long"  | execute_code compiles via CodeDom and passes every referenced assembly   | Do NOT shrink your code. Use the manage_script workaround.     |
+|                                                    | on ONE command line; big projects exceed Windows' 32KB limit. Fails      |                                                                |
+|                                                    | identically for a 12-character script.                                  |                                                                |
+| null data, NO message                              | Unity main thread busy (shader compile, import, domain reload, play).   | Wait. Do not restart anything.                                 |
+| data.reason = "no_unity_session"                   | Flask + tunnel healthy, no editor attached.                              | Open the Unity project / start the MCP server.                 |
+| HTTP 530 or Cloudflare error 1033                  | Tunnel not registered.                                                   | Restart the launcher, register the new URL.                    |
+| DNS "name not known"                               | The trycloudflare hostname expired.                                      | Restart the launcher, register the new URL.                    |
+| /health OK, blender_connected=false, /blender 502  | Blender is down or its addon server stopped.                             | Do Unity work anyway.                                          |
+| /health times out, hostname resolves               | Nothing listening on 9876 locally (usually the Blender addon took it).   | Move Blender to 9877, restart the bridge.                      |
+
+## Broken-compiler workaround (when execute_code is dead)
+The other MCP tools never shell out to mono:
+1. manage_script action=create {name, path:"Assets/<App>/Scripts", contents}
+   writes a .cs editor script (no update action — delete then create).
+2. Let Unity compile (~18-56s). Check read_console action=get types=["error"]
+   for "error CS" before firing.
+3. execute_menu_item {menu_path:"<Menu>/<Item>"} with NO action arg fires a
+   [MenuItem] in that script.
+4. read_console action=get count=N collects output. The console truncates each
+   entry to ONE line — emit one Debug.Log per row with a grep-able prefix like
+   "XX| ...". Clear the console before firing.
+Editor scripts have full power: File.Copy from Downloads, System.Net.WebClient
+downloads from a public URL, PrefabUtility.LoadPrefabContents edits,
+TextureImporter/ModelImporter settings, RenderTexture captures.
+
+Prefab trap: inside LoadPrefabContents use UnityEngine.Object.Instantiate(src),
+never PrefabUtility.InstantiatePrefab — linked instances silently vanish on
+SaveAsPrefabAsset. Guard before saving: childCount>0 and the expected renderer
+exists.
+
+## Fail-fast operating rules
+- Total wait per bridge call <= 45s. On timeout: "the op may have finished in
+  the editor; verify next turn".
+- ONE slow op per turn (play mode, AssetDatabase.Refresh/ImportAsset, scene
+  open, prefab save, anything that recompiles). Fire, return, verify next turn.
+- Max 2 retries per call. Two consecutive dead calls = tunnel down -> relaunch.
+- Backup before destructive edits: <asset>.bak_<operation>_<date>. Confirm the
+  fix, then delete the backup. Verify every edit by re-reading from DISK.
+- Never paste tokens or secrets into chat. Your bearer token stays on your
+  machine and in your own account's relay settings.
 `;
 
 export default function BridgeZipDownload({ className = "" }) {
